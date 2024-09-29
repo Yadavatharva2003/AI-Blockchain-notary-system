@@ -5,10 +5,14 @@ import { Link } from 'react-router-dom';
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
   const [file, setFile] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [progress, setProgress] = React.useState(0); // State for upload progress
   const [darkMode, setDarkMode] = React.useState(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
+
+  const [dragging, setDragging] = React.useState(false);
 
   const documentStatuses = [
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 120 },
@@ -37,9 +41,36 @@ const Dashboard = () => {
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
-      setFile(selectedFile);
-      alert(`File selected: ${selectedFile.name}`);
+      handleFileUpload(selectedFile);
     }
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    setDragging(false);
+    const droppedFiles = event.dataTransfer.files;
+    if (droppedFiles.length > 0) {
+      handleFileUpload(droppedFiles[0]);
+    }
+  };
+
+  const handleFileUpload = (selectedFile) => {
+    setLoading(true); // Start loading
+    setProgress(0); // Reset progress
+
+    // Simulate file upload with a timeout
+    const interval = setInterval(() => {
+      setProgress((oldProgress) => {
+        if (oldProgress === 100) {
+          clearInterval(interval);
+          setLoading(false); // End loading
+          setFile(selectedFile);
+          alert(`File selected: ${selectedFile.name}`);
+          return 100;
+        }
+        return Math.min(oldProgress + 10, 100); // Increment progress
+      });
+    }, 100); // Simulate progress every 100ms
   };
 
   const toggleDarkMode = () => {
@@ -119,30 +150,50 @@ const Dashboard = () => {
           </div>
 
           {/* Main Action Buttons */}
-          <div className="mt-8 flex justify-center space-x-4">
-            <label className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full flex items-center cursor-pointer transition duration-150 ease-in-out transform hover:scale-105">
-              <Upload className="mr-2" />
-              Upload New Document
-              <input 
-                type="file" 
-                onChange={handleFileChange} 
-                className="hidden" 
-                accept=".pdf, .doc, .docx, .txt"
-              />
-            </label>
+          <div className="mt-8 flex flex-col items-center">
+            {loading ? (
+              <div className="w-full max-w-md">
+                <div className="bg-gray-200 rounded-full h-4 mb-2">
+                  <div 
+                    className="bg-blue-500 h-full rounded-full" 
+                    style={{ width: `${progress}%`, transition: 'width 0.1s ease-in-out' }}
+                  />
+                </div>
+                <span className="text-center text-sm font-semibold">{progress}%</span>
+              </div>
+            ) : (
+              <div 
+                className={`border-2 ${dragging ? 'border-blue-500' : 'border-gray-300'} border-dashed rounded-lg p-8 w-full max-w-md text-center transition-all duration-150`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragEnter={() => setDragging(true)}
+                onDragLeave={() => setDragging(false)}
+                onDrop={handleDrop}
+              >
+                <Upload className="mx-auto mb-2" size={32} />
+                <p className="text-gray-600">Drag and drop a file here, or click to select a file</p>
+                <input 
+                  type="file" 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                  accept=".pdf, .doc, .docx, .txt"
+                />
+              </div>
+            )}
             <Link 
               to="/history"
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center transition-transform duration-150 hover:scale-105"
+              className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center transition-transform duration-150 hover:scale-105"
             >
-              <List className="mr-2" />
-              View Past Documents
+              View Upload History <List className="ml-2" size={16} />
             </Link>
           </div>
 
-          {/* Recent Activity Section */}
+          {/* Recent Activities */}
           <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Recent Activity</h2>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-1 lg:grid-cols-1">
+            <h2 className="text-xl font-bold">Recent Activities</h2>
+            <div className="mt-4 space-y-4">
               {recentActivities.map((activity, index) => (
                 <div 
                   key={index} 
