@@ -1,6 +1,7 @@
 import React from 'react';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
 
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
@@ -152,13 +153,8 @@ const Dashboard = () => {
           {/* Main Action Buttons */}
           <div className="mt-8 flex flex-col items-center">
             {loading ? (
-              <div className="w-full max-w-md">
-                <div className="bg-gray-200 rounded-full h-4 mb-2">
-                  <div 
-                    className="bg-blue-500 h-full rounded-full" 
-                    style={{ width: `${progress}%`, transition: 'width 0.1s ease-in-out' }}
-                  />
-                </div>
+              <div className="w-full max-w-md flex flex-col items-center">
+                <BlockchainLoader /> {/* Show the blockchain loader */}
                 <span className="text-center text-sm font-semibold">{progress}%</span>
               </div>
             ) : (
@@ -198,14 +194,10 @@ const Dashboard = () => {
               {recentActivities.map((activity, index) => (
                 <li key={index} className="p-4 border rounded-md shadow-sm bg-white">
                   <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{activity.title}</span>
-                      <span className="text-gray-500 text-sm">{activity.time}</span>
-                    </div>
-                    <span className={`px-2 py-1 text-xs font-bold rounded-full ${activity.status === 'Uploaded' ? 'bg-blue-200 text-blue-800' : activity.status === 'Approved' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
-                      {activity.status}
-                    </span>
+                    <span>{activity.title}</span>
+                    <span className="text-sm text-gray-500">{activity.time}</span>
                   </div>
+                  <span className={`text-xs ${activity.status === 'Approved' ? 'text-green-500' : 'text-red-500'}`}>{activity.status}</span>
                 </li>
               ))}
             </ul>
