@@ -13,6 +13,7 @@ const Dashboard = () => {
   });
 
   const [dragging, setDragging] = React.useState(false);
+  const fileInputRef = React.useRef(null); // Ref for the file input element
 
   const documentStatuses = [
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 120 },
@@ -77,6 +78,10 @@ const Dashboard = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem('darkMode', newMode);
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current.click(); // Trigger the file input when the area or icon is clicked
   };
 
   return (
@@ -164,7 +169,6 @@ const Dashboard = () => {
             ) : (
               <div 
                 className={`border-2 ${dragging ? 'border-blue-500' : 'border-gray-300'} border-dashed rounded-lg p-8 w-full max-w-md text-center transition-all duration-150`}
-                onClick={() => document.querySelector('input[type="file"]').click()} // Trigger file input on click
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragging(true);
@@ -172,11 +176,13 @@ const Dashboard = () => {
                 onDragEnter={() => setDragging(true)}
                 onDragLeave={() => setDragging(false)}
                 onDrop={handleDrop}
+                onClick={triggerFileInput} // Trigger file input on click
               >
                 <Upload className="mx-auto mb-2" size={32} />
                 <p className="text-gray-600">Drag and drop a file here, or click to select a file</p>
                 <input 
                   type="file" 
+                  ref={fileInputRef} // Reference the file input element
                   onChange={handleFileChange} 
                   className="hidden" 
                   accept=".pdf, .doc, .docx, .txt"
@@ -185,31 +191,34 @@ const Dashboard = () => {
             )}
             <Link 
               to="/history"
-              className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center transition-transform duration-150 hover:scale-105"
+              className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center transition-transform duration-150 ease-in-out hover:scale-105"
             >
-              View Upload History <List className="ml-2" size={16} />
+              <List size={24} className="mr-2" />
+              View Document History
             </Link>
           </div>
 
           {/* Recent Activities */}
-          <div className="mt-10">
-            <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
-            <ul className="space-y-2">
+          <section className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Recent Activities</h2>
+            <ul>
               {recentActivities.map((activity, index) => (
-                <li key={index} className="p-4 border rounded-md shadow-sm bg-white">
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{activity.title}</span>
-                      <span className="text-gray-500 text-sm">{activity.time}</span>
+                <li key={index} className={`mb-4 p-4 shadow rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} transition-transform duration-150 hover:scale-105`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{activity.title}</p>
+                      <p className="text-sm text-gray-500">{activity.time}</p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-bold rounded-full ${activity.status === 'Uploaded' ? 'bg-blue-200 text-blue-800' : activity.status === 'Approved' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                    <span 
+                      className={`text-sm font-medium ${activity.status === 'Uploaded' ? 'text-blue-600' : activity.status === 'Approved' ? 'text-green-600' : 'text-yellow-600'}`}
+                    >
                       {activity.status}
                     </span>
                   </div>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         </main>
       </div>
     </div>
