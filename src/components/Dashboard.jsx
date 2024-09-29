@@ -164,6 +164,7 @@ const Dashboard = () => {
             ) : (
               <div 
                 className={`border-2 ${dragging ? 'border-blue-500' : 'border-gray-300'} border-dashed rounded-lg p-8 w-full max-w-md text-center transition-all duration-150`}
+                onClick={() => document.querySelector('input[type="file"]').click()} // Trigger file input on click
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragging(true);
@@ -191,24 +192,23 @@ const Dashboard = () => {
           </div>
 
           {/* Recent Activities */}
-          <div className="mt-8">
-            <h2 className="text-xl font-bold">Recent Activities</h2>
-            <div className="mt-4 space-y-4">
+          <div className="mt-10">
+            <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
+            <ul className="space-y-2">
               {recentActivities.map((activity, index) => (
-                <div 
-                  key={index} 
-                  className={`overflow-hidden shadow rounded-lg p-4 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'} transition-transform duration-150 hover:scale-105`}
-                >
+                <li key={index} className="p-4 border rounded-md shadow-sm bg-white">
                   <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-semibold">{activity.title}</p>
-                      <p className="text-sm text-gray-500">{activity.time}</p>
+                    <div className="flex flex-col">
+                      <span className="font-semibold">{activity.title}</span>
+                      <span className="text-gray-500 text-sm">{activity.time}</span>
                     </div>
-                    <span className="text-xs px-2 py-1 rounded-full bg-blue-500 text-white">{activity.status}</span>
+                    <span className={`px-2 py-1 text-xs font-bold rounded-full ${activity.status === 'Uploaded' ? 'bg-blue-200 text-blue-800' : activity.status === 'Approved' ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                      {activity.status}
+                    </span>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </main>
       </div>
