@@ -2,10 +2,13 @@ import React from 'react';
 import { storage } from './firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link,useNavigate} from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
 
+
+
 const Dashboard = () => {
+  
   const [showOptions, setShowOptions] = React.useState(false);
   const [file, setFile] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
@@ -14,9 +17,16 @@ const Dashboard = () => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
+  
 
+  const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
 
+  const handleSignOut = () => {
+    // Add sign-out logic here (e.g., clear user session, tokens, etc.)
+    
+    navigate('/',{ replace: true }); // Navigate to the enhanced homepage
+  };
   const documentStatuses = [
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 120 },
     { title: 'In Progress', icon: <Clock size={32} />, count: 15 },
@@ -25,7 +35,7 @@ const Dashboard = () => {
   ];
 
   const sidebarItems = [
-    { title: 'Sign Out', icon: <LogOut size={24} /> },
+    { title: 'Sign Out', icon: <LogOut size={24} />,action: handleSignOut},
     { title: 'Account Settings', icon: <Settings size={24} /> },
     { title: 'About Us', icon: <Info size={24} /> },
     { title: 'Help Center', icon: <HelpCircle size={24} /> },
@@ -84,12 +94,13 @@ const Dashboard = () => {
       }
     );
   };
-
+ 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem('darkMode', newMode);
   };
+ 
 
   return (
     <div className={`h-screen flex ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
@@ -112,7 +123,7 @@ const Dashboard = () => {
           <div className="flex flex-col mt-2">
             {sidebarItems.map((item, index) => (
               <a 
-                href="#" 
+              onClick={item.action}
                 key={index} 
                 className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 transition-transform duration-150 hover:scale-105"
               >

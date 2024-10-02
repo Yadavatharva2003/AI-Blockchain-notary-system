@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from "../../node_modules/framer-motion";
 import { ArrowRight, LogIn, UserPlus, Moon, Sun, Upload, CheckCircle, Database, Key } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
 
 
 
@@ -82,6 +83,7 @@ export default function EnhancedHomepage() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 className={`px-4 py-2 rounded-md ${darkMode ? 'bg-blue-600 text-white' : 'bg-white text-blue-600'}`}
+                onClick={() => navigate('/login')}
               >
                 <LogIn className="inline-block mr-2" size={20} />
                 Login
@@ -90,6 +92,7 @@ export default function EnhancedHomepage() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 className={`px-4 py-2 rounded-md ${darkMode ? 'bg-purple-600 text-white' : 'bg-white text-purple-600'}`}
+                onClick={() => navigate('/signup')}
               >
                 <UserPlus className="inline-block mr-2" size={20} />
                 Sign Up
