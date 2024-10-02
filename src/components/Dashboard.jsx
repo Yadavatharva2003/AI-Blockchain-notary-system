@@ -1,5 +1,6 @@
 import React from 'react';
-
+import { storage } from './firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
@@ -57,22 +58,31 @@ const Dashboard = () => {
   };
 
   const handleFileUpload = (selectedFile) => {
-    setLoading(true); // Start loading
-    setProgress(0); // Reset progress
-
-    // Simulate file upload with a timeout
-    const interval = setInterval(() => {
-      setProgress((oldProgress) => {
-        if (oldProgress === 100) {
-          clearInterval(interval);
-          setLoading(false); // End loading
+    setLoading(true);
+    setProgress(0);
+  
+    const storageRef = ref(storage, `uploads/${selectedFile.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, selectedFile);
+  
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setProgress(progress);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        setLoading(false);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          console.log("File available at", downloadURL);
           setFile(selectedFile);
-          alert(`File selected: ${selectedFile.name}`);
-          return 100;
-        }
-        return Math.min(oldProgress + 10, 100); // Increment progress
-      });
-    }, 100); // Simulate progress every 100ms
+          setLoading(false);
+          alert(`File uploaded successfully: ${selectedFile.name}`);
+        });
+      }
+    );
   };
 
   const toggleDarkMode = () => {
