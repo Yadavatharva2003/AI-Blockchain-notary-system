@@ -1,0 +1,201 @@
+:root {
+    --primary-color: #3c009d;
+    --secondary-color: #5e5ce6;
+    --background-light: linear-gradient(135deg, #e0eafc, #cfdef3);
+    --background-dark: linear-gradient(135deg, #2c2c2c, #1a1a1a);
+    --input-bg: #eaeaea;
+    --input-bg-light: #ffffff;
+    --input-border-color: #eaeaea;
+    --input-border-focus: #3c009d;
+    --text-color: #797979;
+    --text-color-light: #fff;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: var(--background-light);
+    transition: background 0.3s ease;
+}
+
+/* Ensure the container takes up full viewport height and centers everything */
+.container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: var(--background-light);
+    padding-bottom: 30px;
+    margin: 0 auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    transition: background 0.3s ease;
+}
+
+.container.dark-mode {
+    background: var(--background-dark);
+}
+
+.header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+}
+
+.text {
+    color: var(--primary-color);
+    font-size: 78px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.underline {
+    width: 150px;
+    height: 6px;
+    background: var(--primary-color);
+    border-radius: 7px;
+    margin: 0 auto;
+}
+
+.inputs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-top: 45px;
+}
+
+.input {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 480px;
+    height: 80px;
+    background: var(--input-bg-light);
+    border: 2px solid var(--input-border-color);
+    border-radius: 10px;
+    padding: 0 20px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input img {
+    margin: 0 15px;
+}
+
+.input input {
+    height: 50px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-size: 19px;
+}
+
+.input input:focus {
+    border: 2px solid var(--input-border-focus);
+    box-shadow: 0 0 5px rgba(60, 0, 157, 0.5);
+}
+
+.forgot-password {
+    text-align: center;
+    margin-top: 27px;
+    color: var(--text-color);
+    font-size: 18px;
+}
+
+.forgot-password span {
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.submit-container {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin: 60px auto;
+}
+
+.submit {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 220px;
+    height: 59px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border-radius: 50px;
+    font-size: 19px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.submit:hover {
+    transform: translateY(-5px);
+    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+    box-shadow: 0 4px 15px rgba(60, 0, 157, 0.5);
+}
+
+.gray {
+    background: #EAEAEA;
+    color: #676767;
+}
+
+.spinner {
+    border: 5px solid #f3f3f3; /* Light gray */
+    border-top: 5px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto; /* Center the spinner */
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.error {
+    color: red;
+    margin-top: 10px;
+  }
+  
+  @media (max-width: 600px) {
+    .container {
+      padding: 20px;
+    }
+  
+    .input {
+      flex-direction: column;
+    }
+  }
+  .popup {
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    padding: 5px;  /* Reduced padding */
+    border-radius: 5px;
+    position: absolute;
+    z-index: 10;
+    margin-top: -10px; /* Adjust as needed */
+    color: #333;
+    font-size: 0.8em;  /* Reduced font size */
+    transition: opacity 0.3s; /* Smooth appearance */
+  }
+  
+  .error {
+    color: red;
+    margin-top: 10px;
+    font-size: 0.9em; /* Smaller font size */
+  }
+  
+  /* Example for input focus effect */
+  .input input:focus {
+    outline: none;
+    border: 1px solid blue; /* Change border color on focus */
+  }
+  
+    
