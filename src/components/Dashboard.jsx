@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
@@ -7,11 +8,12 @@ const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
   const [file, setFile] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
-  const [progress, setProgress] = React.useState(0);
+  const [progress, setProgress] = React.useState(0); // State for upload progress
   const [darkMode, setDarkMode] = React.useState(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
+
   const [dragging, setDragging] = React.useState(false);
 
   const documentStatuses = [
@@ -55,25 +57,22 @@ const Dashboard = () => {
   };
 
   const handleFileUpload = (selectedFile) => {
-    setLoading(true);
-    setProgress(0);
+    setLoading(true); // Start loading
+    setProgress(0); // Reset progress
 
+    // Simulate file upload with a timeout
     const interval = setInterval(() => {
       setProgress((oldProgress) => {
         if (oldProgress === 100) {
           clearInterval(interval);
-          setLoading(false);
+          setLoading(false); // End loading
           setFile(selectedFile);
           alert(`File selected: ${selectedFile.name}`);
           return 100;
         }
-        return Math.min(oldProgress + 10, 100);
+        return Math.min(oldProgress + 10, 100); // Increment progress
       });
-    }, 100);
-
-    setTimeout(() => {
-      setLoading(false);
-    }, 2000);
+    }, 100); // Simulate progress every 100ms
   };
 
   const toggleDarkMode = () => {
@@ -98,6 +97,7 @@ const Dashboard = () => {
             />
           </button>
         </div>
+        {/* Sidebar content */}
         {showOptions && (
           <div className="flex flex-col mt-2">
             {sidebarItems.map((item, index) => (
@@ -119,6 +119,7 @@ const Dashboard = () => {
         <header className={`shadow rounded-lg mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
             <h1 className="text-3xl font-bold">Dashboard</h1>
+            {/* Dark Mode Toggle */}
             <button 
               onClick={toggleDarkMode} 
               className={`p-2 rounded-full shadow-md transition-transform duration-150 ease-in-out transform hover:scale-105 ${darkMode ? 'bg-gray-700' : 'bg-gray-300'}`}>
@@ -160,10 +161,7 @@ const Dashboard = () => {
             ) : (
               <div 
                 className={`border-2 ${dragging ? 'border-blue-500' : 'border-gray-300'} border-dashed rounded-lg p-8 w-full max-w-md text-center transition-all duration-150`}
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent event bubbling
-                  document.querySelector('input[type="file"]').click(); // Trigger file input on click
-                }}
+                onClick={() => document.querySelector('input[type="file"]').click()} // Trigger file input on click
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragging(true);
@@ -182,26 +180,37 @@ const Dashboard = () => {
                 />
               </div>
             )}
-           
-            {!loading && ( // Render link only if not loading
-              <Link 
-                to="/history"
-                className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center transition-transform duration-150 hover:scale-105"
-              >
-                View Upload History <List className="ml-2" size={16} />
-              </Link>
-            )}
+            <Link 
+              to="/history"
+              className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center transition-transform duration-150 hover:scale-105"
+            >
+              View Upload History <List className="ml-2" size={16} />
+            </Link>
           </div>
-          
-          {/* Recent Activity Section */}
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold">Recent Activities</h2>
-            <ul className="mt-4 space-y-2">
+
+          {/* Recent Activities */}
+          <div className="mt-10">
+            <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
+            <ul className="space-y-2">
               {recentActivities.map((activity, index) => (
-                <li key={index} className={`p-4 border rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} transition-transform duration-150 hover:scale-105`}>
-                  <p className="font-semibold">{activity.title}</p>
-                  <p className="text-gray-600 text-sm">{activity.time}</p>
-                  <p className={`text-sm ${activity.status === 'Rejected' ? 'text-red-600' : 'text-green-600'}`}>{activity.status}</p>
+                <li 
+                  key={index} 
+                  className={`p-4 rounded-lg shadow transition-transform duration-150 hover:scale-105 ${darkMode ? 'bg-gray-800' : 'bg-white'} `}
+                >
+                  <div className="flex justify-between">
+                    {/* Title on the left */}
+                    <span>{activity.title}</span>
+                    
+                    {/* Date and Status on the right */}
+                    <div className="flex flex-col items-end">
+                      <span className="text-gray-500 text-sm">{activity.time}</span>
+                      <span 
+                        className={`mt-1 text-sm font-semibold ${activity.status === 'Uploaded' ? 'text-blue-500' : activity.status === 'Approved' ? 'text-green-500' : 'text-gray-500'}`}
+                      >
+                        {activity.status}
+                      </span>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
