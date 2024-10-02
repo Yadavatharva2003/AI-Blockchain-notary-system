@@ -1,9 +1,10 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, LogIn, UserPlus, Moon, Sun, Upload, CheckCircle, Database, Key } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+
 
 // Static Text for the Welcome Section
 const staticText = "DocuVerify is a cutting-edge document verification platform that leverages blockchain technology to ensure the authenticity and integrity of your important documents. With our state-of-the-art system, you can securely upload, verify, and manage your documents with ease and confidence.";
