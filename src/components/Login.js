@@ -54,12 +54,9 @@ const Login = () => {
             await sendEmailVerification(updatedUser); // Resend verification email if needed
         }
     } catch (error) {
-        // Check if the error code indicates that the email is not verified
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+       
             setError('Invalid credentials. Please try again.');
-        } else {
-            setError('An error occurred. Please try again later.');
-        }
+         
     }
 };
 
