@@ -5,6 +5,10 @@ import { UserPlus, Home, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from './firebase'; // Import Firebase auth
 import { createUserWithEmailAndPassword, sendEmailVerification,fetchSignInMethodsForEmail } from 'firebase/auth';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
+
+const db = getFirestore();
+
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -38,7 +42,7 @@ const SignUp = () => {
     try {
       // Check if the email already exists
       const signInMethods = await fetchSignInMethodsForEmail(auth, email);
-      if (signInMethods) {
+      if (signInMethods.length > 0) {
         // Email already exists
         setMessage('An account with this email already exists. Please login instead.');
         return;
@@ -51,9 +55,20 @@ const SignUp = () => {
       // Send verification email
       await sendEmailVerification(user);
       setMessage('Verification email sent! Please verify your email before logging in.');
-  
+      
+     // Save user info to Firestore with different field names
+      await setDoc(doc(db, 'users', user.uid), {
+        name: fullName, // 'name' instead of 'fullName'
+        email: email, // 'emailAddress' instead of 'email'
+        dob: dateOfBirth, // 'dob' instead of 'dateOfBirth'
+        phone: phoneNumber // 'phone' instead of 'phoneNumber'
+      });
+
       // Optionally, save user info to your database, then redirect to another page
-      navigate('/login', { replace: true });
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 3000);
+      
   
     } catch (error) {
       // Handle signup errors
@@ -122,7 +137,7 @@ const SignUp = () => {
                 onChange={(e) => {
                   // Ensure that only digits are entered and limit length
                   const value = e.target.value.replace(/[^0-9]/g, ''); // Remove non-digit characters
-                  if (value.length == 10) { // Limit to 10 digits
+                  if (value.length <= 10) { // Limit to 10 digits
                     setPhoneNumber(value);
                   }
                 }}
