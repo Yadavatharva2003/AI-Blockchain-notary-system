@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { UserPlus, Home, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from './firebase'; // Import Firebase auth
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification,fetchSignInMethodsForEmail } from 'firebase/auth';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -33,18 +33,28 @@ const SignUp = () => {
 
   const handleSignUp = async (e) => {
     e.preventDefault();
+    setMessage(''); // Clear previous messages
+  
     try {
+      // Check if the email already exists
+      const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+      if (signInMethods) {
+        // Email already exists
+        setMessage('An account with this email already exists. Please login instead.');
+        return;
+      }
+  
       // Create a new user using Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
+  
       // Send verification email
       await sendEmailVerification(user);
       setMessage('Verification email sent! Please verify your email before logging in.');
-
+  
       // Optionally, save user info to your database, then redirect to another page
       navigate('/login', { replace: true });
-
+  
     } catch (error) {
       // Handle signup errors
       setMessage(error.message);
@@ -109,7 +119,13 @@ const SignUp = () => {
                 type="tel"
                 placeholder="Phone Number"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                onChange={(e) => {
+                  // Ensure that only digits are entered and limit length
+                  const value = e.target.value.replace(/[^0-9]/g, ''); // Remove non-digit characters
+                  if (value.length == 10) { // Limit to 10 digits
+                    setPhoneNumber(value);
+                  }
+                }}
                 className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                 required
               />
