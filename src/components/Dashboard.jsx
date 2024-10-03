@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { storage } from './firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
 import { Link,useNavigate} from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'; // Import Firebase Auth
+import { storage, db } from './firebase'; // Make sure Firestore (db) is imported from your firebase config
+import { doc, collection, addDoc , getDocs, query} from 'firebase/firestore';
 
 
 const Dashboard = () => {
@@ -21,12 +22,38 @@ const Dashboard = () => {
   const [user, setUser] = React.useState(null); // State to store user info
   const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
+  const [uploadedCount, setUploadedCount] = React.useState(0);
+  const [inProgressCount, setInProgressCount] = React.useState(0);
+  const [verifiedCount, setVerifiedCount] = React.useState(0);
+  const [rejectedCount, setRejectedCount] = React.useState(0);
+
+  const [documentStatuses, setDocumentStatuses] = React.useState([
+    { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 0 }, // Start with 0
+    { title: 'In Progress', icon: <Clock size={32} />, count: 0 },
+    { title: 'Verified Documents', icon: <CheckCircle size={32} />, count: 0 },
+    { title: 'Rejected Documents', icon: <XCircle size={32} />, count: 0 },
+]);
 
   useEffect(() => {
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
             setUser(currentUser); // Set user if logged in
+
+            // Fetch uploaded files count from Firestore
+            const userDocRef = doc(db, "users", currentUser.uid);
+            const userFilesCollection = collection(userDocRef, "uploadedFiles");
+
+            // Query all uploaded files
+            const uploadedFilesQuery = query(userFilesCollection);
+            const querySnapshot = await getDocs(uploadedFilesQuery);
+
+            // Update document statuses with the count of uploaded documents
+            setDocumentStatuses((prevStatuses) =>
+                prevStatuses.map((status) =>
+                    status.title === 'Uploaded Documents' ? { ...status, count: querySnapshot.size } : status
+                )
+            );
         } else {
             navigate('/login'); // Redirect to login if not authenticated
         }
@@ -34,6 +61,43 @@ const Dashboard = () => {
 
     return () => unsubscribe(); // Clean up subscription
 }, [navigate]);
+
+const fetchDocumentCounts = async (userId) => {
+  try {
+    const userDocRef = doc(db, "users", userId);
+    const filesCollectionRef = collection(userDocRef, "uploadedFiles");
+    const filesSnapshot = await getDocs(query(filesCollectionRef));
+
+    let uploaded = 0, inProgress = 0, verified = 0, rejected = 0;
+
+    filesSnapshot.forEach((doc) => {
+      const fileData = doc.data();
+      switch (fileData.status) {
+        case 'Uploaded':
+          uploaded++;
+          break;
+        case 'In Progress':
+          inProgress++;
+          break;
+        case 'Verified':
+          verified++;
+          break;
+        case 'Rejected':
+          rejected++;
+          break;
+        default:
+          break;
+      }
+    });
+
+    setUploadedCount(uploaded);
+    setInProgressCount(inProgress);
+    setVerifiedCount(verified);
+    setRejectedCount(rejected);
+  } catch (error) {
+    console.error("Error fetching document counts:", error);
+  }
+};
 
 
   const handleSignOut = async () => {
@@ -46,12 +110,8 @@ const Dashboard = () => {
     }
 };
 
-  const documentStatuses = [
-    { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 120 },
-    { title: 'In Progress', icon: <Clock size={32} />, count: 15 },
-    { title: 'Verified Documents', icon: <CheckCircle size={32} />, count: 100 },
-    { title: 'Rejected Documents', icon: <XCircle size={32} />, count: 5 },
-  ];
+
+
 
   const sidebarItems = [
     { title: 'Sign Out', icon: <LogOut size={24} />,action: handleSignOut},
@@ -85,34 +145,57 @@ const Dashboard = () => {
       handleFileUpload(droppedFiles[0]);
     }
   };
-
   const handleFileUpload = (selectedFile) => {
     setLoading(true);
     setProgress(0);
-  
+
     const storageRef = ref(storage, `uploads/${selectedFile.name}`);
     const uploadTask = uploadBytesResumable(storageRef, selectedFile);
-  
+
     uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setProgress(progress);
-      },
-      (error) => {
-        console.error("Upload failed:", error);
-        setLoading(false);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          console.log("File available at", downloadURL);
-          setFile(selectedFile);
-          setLoading(false);
-          alert(`File uploaded successfully: ${selectedFile.name}`);
-        });
-      }
+        'state_changed',
+        (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setProgress(progress);
+        },
+        (error) => {
+            console.error("Upload failed:", error);
+            setLoading(false);
+        },
+        async () => {
+            try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                console.log("File available at", downloadURL);
+
+                // Set file metadata
+                const fileMetadata = {
+                    name: selectedFile.name,
+                    size: selectedFile.size,
+                    type: selectedFile.type,
+                    downloadURL,
+                    uploadTime: new Date(),
+                };
+
+                // Assuming user is logged in and user ID is available in `user` state
+                if (user) {
+                    const userDocRef = doc(db, "users", user.uid); // Reference to the user document
+                    const userFilesCollection = collection(userDocRef, "uploadedFiles"); // Sub-collection for user's files
+
+                    // Add file metadata to Firestore
+                    await addDoc(userFilesCollection, fileMetadata);
+                    console.log("File metadata successfully added to Firestore.");
+                }
+
+                setFile(selectedFile);
+                setLoading(false);
+                alert(`File uploaded successfully: ${selectedFile.name}`);
+            } catch (error) {
+                console.error("Error storing file metadata in Firestore:", error);
+                setLoading(false);
+            }
+        }
     );
-  };
+};
  
   const toggleDarkMode = () => {
     const newMode = !darkMode;
