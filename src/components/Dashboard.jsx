@@ -5,7 +5,7 @@ import { Link,useNavigate} from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'; // Import Firebase Auth
 import { storage, db } from './firebase'; // Make sure Firestore (db) is imported from your firebase config
-import { doc, collection, addDoc , getDocs,onSnapshot, query} from 'firebase/firestore';
+import { doc, collection, addDoc ,onSnapshot, } from 'firebase/firestore';
 
 
 
