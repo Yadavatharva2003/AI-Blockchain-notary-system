@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { storage } from './firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
 import { Link,useNavigate} from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
-
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'; // Import Firebase Auth
 
 
 const Dashboard = () => {
@@ -18,15 +18,34 @@ const Dashboard = () => {
     return savedMode ? JSON.parse(savedMode) : false;
   });
   
-
+  const [user, setUser] = React.useState(null); // State to store user info
   const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
 
-  const handleSignOut = () => {
-    // Add sign-out logic here (e.g., clear user session, tokens, etc.)
-    
-    navigate('/',{ replace: true }); // Navigate to the enhanced homepage
-  };
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        if (currentUser) {
+            setUser(currentUser); // Set user if logged in
+        } else {
+            navigate('/login'); // Redirect to login if not authenticated
+        }
+    });
+
+    return () => unsubscribe(); // Clean up subscription
+}, [navigate]);
+
+
+  const handleSignOut = async () => {
+    const auth = getAuth();
+    try {
+        await signOut(auth); // Sign out from Firebase
+        navigate('/', { replace: true }); // Navigate to the homepage
+    } catch (error) {
+        console.error("Sign-out error:", error);
+    }
+};
+
   const documentStatuses = [
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 120 },
     { title: 'In Progress', icon: <Clock size={32} />, count: 15 },

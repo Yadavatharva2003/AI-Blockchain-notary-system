@@ -44,7 +44,7 @@ const DashboardHistory = () => {
       <div className="pt-12 pb-6 px-4 sm:px-6 lg:px-8">
         <header className={`mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow rounded-lg`}>
           <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex items-center">
-            <Link to="/" className="mr-4">
+            <Link to="/dashboard" className="mr-4">
               <ArrowLeft size={24} />
             </Link>
             <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Dashboard History</h1>
