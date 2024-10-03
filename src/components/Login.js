@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn, Home, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from './firebase'; // Import Firebase auth instance
 
 const Login = () => {
@@ -12,6 +12,9 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [showResetField, setShowResetField] = useState(false); // State for showing/hiding reset field
   
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -48,6 +51,27 @@ const Login = () => {
       }
     } catch (error) {
       setError('Invalid credentials or an error occurred.');
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setResetError('');
+    setResetSuccess('');
+
+    try {
+      const user = await auth.getUserByEmail(email); // Fetch user by email to check verification status
+      
+      // Check if the user's email is verified
+      if (user.emailVerified) {
+        await sendPasswordResetEmail(auth, email); // Use the email already provided for login
+        setResetSuccess('Password reset email sent. Please check your inbox.');
+        setShowResetField(false); // Hide the reset field
+      } else {
+        setResetError('Email not verified. Please verify your email before resetting your password.');
+      }
+    } catch (error) {
+      setResetError('Failed to send reset email. Please check the email address and try again.');
     }
   };
 
@@ -124,6 +148,32 @@ const Login = () => {
               Sign Up
             </button>
           </p>
+
+          {/* Forgot Password */}
+          <p className="mt-4 text-sm">
+            Forgot your password?{' '}
+            <button onClick={() => setShowResetField(true)} className="text-blue-600 hover:underline">
+              Reset Password
+            </button>
+          </p>
+
+          {/* Reset password form */}
+          {showResetField && (
+            <motion.div className="space-y-4 mt-4">
+              <p className="text-gray-500">A password reset email will be sent to {email}.</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleResetPassword}
+                className={`w-full px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm ${darkMode ? 'text-white bg-green-600 hover:bg-green-700' : 'text-gray-700 bg-white hover:bg-gray-50'} transition-all duration-300`}
+              >
+                Send Reset Email
+              </motion.button>
+
+              {resetError && <p className="text-red-600">{resetError}</p>}
+              {resetSuccess && <p className="text-green-600">{resetSuccess}</p>}
+            </motion.div>
+          )}
         </motion.div>
       </main>
     </div>
