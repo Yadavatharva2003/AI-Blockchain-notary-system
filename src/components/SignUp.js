@@ -1,8 +1,10 @@
 'use client';
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, ArrowRight, Moon, Sun } from 'lucide-react';
+import { UserPlus, Home, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { auth } from './firebase'; // Import Firebase auth
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -22,17 +24,54 @@ const SignUp = () => {
     }
   };
 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [message, setMessage] = useState('');
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    try {
+      // Create a new user using Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Send verification email
+      await sendEmailVerification(user);
+      setMessage('Verification email sent! Please verify your email before logging in.');
+
+      // Optionally, save user info to your database, then redirect to another page
+      navigate('/login', { replace: true });
+
+    } catch (error) {
+      // Handle signup errors
+      setMessage(error.message);
+    }
+  };
+
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'}`}>
       <header className="py-6 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <h1 className="text-3xl font-bold">DocuVerify</h1>
-          <button
-            onClick={toggleDarkMode}
-            className={`p-2 rounded-full shadow-md transition-all duration-300 ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-          >
-            {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-gray-700" />}
-          </button>
+          <div className="flex items-center space-x-4">
+            {/* Home button */}
+            <button
+              onClick={() => navigate('/', { replace: true })}
+              className={`p-2 rounded-full shadow-md transition-all duration-300 ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              <Home size={24} className={`${darkMode ? 'text-yellow-400' : 'text-gray-700'}`} />
+            </button>
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDarkMode}
+              className={`p-2 rounded-full shadow-md transition-all duration-300 ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-gray-700" />}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -44,15 +83,56 @@ const SignUp = () => {
           className="text-center"
         >
           <h2 className="text-4xl font-extrabold mb-8">Sign Up for DocuVerify</h2>
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSignUp}>
             <div>
-              <input type="text" placeholder="Full Name" className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} required />
+              <input
+                type="text"
+                placeholder="Full Name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                required
+              />
             </div>
             <div>
-              <input type="email" placeholder="Email" className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} required />
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                required
+              />
             </div>
             <div>
-              <input type="password" placeholder="Password" className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`} required />
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                required
+              />
+            </div>
+            <div>
+              <input
+                type="date"
+                placeholder="Date of Birth"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                required
+              />
+            </div>
+            <div>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`w-full px-4 py-2 border rounded-md ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                required
+              />
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -70,6 +150,7 @@ const SignUp = () => {
               Login
             </button>
           </p>
+          {message && <p className="mt-6 text-red-500">{message}</p>}
         </motion.div>
       </main>
     </div>
