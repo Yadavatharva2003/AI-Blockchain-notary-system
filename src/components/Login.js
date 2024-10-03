@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LogIn, Home, Moon, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail,sendEmailVerification } from 'firebase/auth';
 import { auth } from './firebase'; // Import Firebase auth instance
 
 const Login = () => {
@@ -38,21 +38,31 @@ const Login = () => {
     setSuccess(''); // Reset success message
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-      // Check if the user's email is verified
-      if (user.emailVerified) {
-        setSuccess('Login successful. Redirecting...');
-        setTimeout(() => navigate('/dashboard', { replace: true }), 2000); // Redirect after successful login
-      } else {
-        setError('Please verify your email before logging in.');
-        user.sendEmailVerification(); // Resend verification email if needed
-      }
+        // Reload the user to get updated user information, including email verification status
+        await user.reload(); // Ensure the latest user information is fetched
+        const updatedUser = auth.currentUser; // Get the latest user info after reload
+
+        // Check if the user's email is verified
+        if (updatedUser.emailVerified) {
+            setSuccess('Login successful. Redirecting...');
+            setTimeout(() => navigate('/dashboard', { replace: true }), 2000); // Redirect after successful login
+        } else {
+            setError('Please verify your email before logging in.');
+            await sendEmailVerification(updatedUser); // Resend verification email if needed
+        }
     } catch (error) {
-      setError('Invalid credentials or an error occurred.');
+        // Check if the error code indicates that the email is not verified
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            setError('Invalid credentials. Please try again.');
+        } else {
+            setError('An error occurred. Please try again later.');
+        }
     }
-  };
+};
+
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
@@ -71,7 +81,7 @@ const Login = () => {
         setResetError('Email not verified. Please verify your email before resetting your password.');
       }
     } catch (error) {
-      setResetError('Failed to send reset email. Please check the email address and try again.');
+      setResetError('Failed to send reset email. Please check the email address and try again or check email is verified or not.');
     }
   };
 
