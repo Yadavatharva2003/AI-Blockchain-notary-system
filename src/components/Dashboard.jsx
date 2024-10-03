@@ -5,7 +5,8 @@ import { Link,useNavigate} from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoader
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'; // Import Firebase Auth
 import { storage, db } from './firebase'; // Make sure Firestore (db) is imported from your firebase config
-import { doc, collection, addDoc , getDocs, query} from 'firebase/firestore';
+import { doc, collection, addDoc , getDocs,onSnapshot, query} from 'firebase/firestore';
+
 
 
 const Dashboard = () => {
@@ -22,10 +23,7 @@ const Dashboard = () => {
   const [user, setUser] = React.useState(null); // State to store user info
   const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
-  const [uploadedCount, setUploadedCount] = React.useState(0);
-  const [inProgressCount, setInProgressCount] = React.useState(0);
-  const [verifiedCount, setVerifiedCount] = React.useState(0);
-  const [rejectedCount, setRejectedCount] = React.useState(0);
+  
 
   const [documentStatuses, setDocumentStatuses] = React.useState([
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 0 }, // Start with 0
@@ -34,70 +32,48 @@ const Dashboard = () => {
     { title: 'Rejected Documents', icon: <XCircle size={32} />, count: 0 },
 ]);
 
-  useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        if (currentUser) {
-            setUser(currentUser); // Set user if logged in
+useEffect(() => {
+  const auth = getAuth();
+  const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+          setUser(currentUser); // Set user if logged in
 
-            // Fetch uploaded files count from Firestore
-            const userDocRef = doc(db, "users", currentUser.uid);
-            const userFilesCollection = collection(userDocRef, "uploadedFiles");
+          // Firestore listener for uploaded files
+          const userDocRef = doc(db, "users", currentUser.uid);
+          const userFilesCollection = collection(userDocRef, "uploadedFiles");
 
-            // Query all uploaded files
-            const uploadedFilesQuery = query(userFilesCollection);
-            const querySnapshot = await getDocs(uploadedFilesQuery);
+          // Set up the onSnapshot listener
+          const unsubscribeFiles = onSnapshot(userFilesCollection, (snapshot) => {
+              const uploaded = snapshot.docs.filter(doc => doc.exists()).length; // Count of uploaded documents
+              const inProgress = 0; // Replace with your logic for 'in progress'
+              const verified = 0; // Replace with your logic for 'verified'
+              const rejected = 0; // Replace with your logic for 'rejected'
 
-            // Update document statuses with the count of uploaded documents
-            setDocumentStatuses((prevStatuses) =>
-                prevStatuses.map((status) =>
-                    status.title === 'Uploaded Documents' ? { ...status, count: querySnapshot.size } : status
-                )
-            );
-        } else {
-            navigate('/login'); // Redirect to login if not authenticated
-        }
-    });
+              // Update document statuses with the count of uploaded documents
+              setDocumentStatuses((prevStatuses) =>
+                  prevStatuses.map((status) => {
+                      if (status.title === 'Uploaded Documents') return { ...status, count: uploaded };
+                      if (status.title === 'In Progress') return { ...status, count: inProgress };
+                      if (status.title === 'Verified Documents') return { ...status, count: verified };
+                      if (status.title === 'Rejected Documents') return { ...status, count: rejected };
+                      return status;
+                  })
+              );
+          });
 
-    return () => unsubscribe(); // Clean up subscription
+          // Return cleanup functions
+          return () => {
+              unsubscribeFiles(); // Clean up Firestore listener
+          };
+      } else {
+          navigate('/login'); // Redirect to login if not authenticated
+      }
+  });
+
+  return () => unsubscribeAuth(); // Clean up auth listener
 }, [navigate]);
 
-const fetchDocumentCounts = async (userId) => {
-  try {
-    const userDocRef = doc(db, "users", userId);
-    const filesCollectionRef = collection(userDocRef, "uploadedFiles");
-    const filesSnapshot = await getDocs(query(filesCollectionRef));
 
-    let uploaded = 0, inProgress = 0, verified = 0, rejected = 0;
-
-    filesSnapshot.forEach((doc) => {
-      const fileData = doc.data();
-      switch (fileData.status) {
-        case 'Uploaded':
-          uploaded++;
-          break;
-        case 'In Progress':
-          inProgress++;
-          break;
-        case 'Verified':
-          verified++;
-          break;
-        case 'Rejected':
-          rejected++;
-          break;
-        default:
-          break;
-      }
-    });
-
-    setUploadedCount(uploaded);
-    setInProgressCount(inProgress);
-    setVerifiedCount(verified);
-    setRejectedCount(rejected);
-  } catch (error) {
-    console.error("Error fetching document counts:", error);
-  }
-};
 
 
   const handleSignOut = async () => {
