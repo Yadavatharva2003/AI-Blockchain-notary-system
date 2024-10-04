@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence }from 'framer-motion';
 import { format } from 'date-fns';
 import { CalendarIcon, ChevronDown, ChevronUp, Moon, Sun, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
