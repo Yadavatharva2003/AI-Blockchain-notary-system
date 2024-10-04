@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { motion } from "../../node_modules/framer-motion";
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, LogIn, UserPlus, Moon, Sun, Upload, CheckCircle, Database, Key } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
