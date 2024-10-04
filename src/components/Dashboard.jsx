@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 import React, { useEffect ,useState } from 'react';
+=======
+import React, { useEffect , useState } from 'react';
+>>>>>>> Stashed changes
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun } from 'lucide-react';
 import { Link,useNavigate} from 'react-router-dom';
@@ -6,6 +10,7 @@ import BlockchainLoader from './BlockchainLoader'; // Import the BlockchainLoade
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth'; // Import Firebase Auth
 import { storage, db } from './firebase'; // Make sure Firestore (db) is imported from your firebase config
 import { doc, collection, addDoc ,onSnapshot, } from 'firebase/firestore';
+
 
 
 
