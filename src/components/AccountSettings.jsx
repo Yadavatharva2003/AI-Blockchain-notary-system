@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Moon, Sun, Edit2 } from 'lucide-react';
@@ -11,7 +11,7 @@ const AccountSettings = () => {
     return savedMode ? JSON.parse(savedMode) : false;
   });
 
-  // User state: mock user data, can be replaced by actual data from backend
+  // User state: mock user data
   const [userData, setUserData] = useState({
     username: 'johndoe',
     email: 'john.doe@example.com',
@@ -98,6 +98,7 @@ const AccountSettings = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <form onSubmit={handleSubmit} className={`p-4 mt-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow`}>
+            {/* Username Field */}
             <div className="mb-4 flex items-center justify-between">
               <label htmlFor="username" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Username</label>
               <button 
@@ -118,6 +119,7 @@ const AccountSettings = () => {
               disabled={editableField !== 'username'}
             />
 
+            {/* Email Field */}
             <div className="mb-4 flex items-center justify-between">
               <label htmlFor="email" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Email</label>
               <button 
@@ -138,6 +140,7 @@ const AccountSettings = () => {
               disabled={editableField !== 'email'}
             />
 
+            {/* Password Field */}
             <div className="mb-4 flex items-center justify-between">
               <label htmlFor="password" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Password</label>
               <button 
@@ -158,6 +161,7 @@ const AccountSettings = () => {
               disabled={editableField !== 'password'}
             />
 
+            {/* Action Buttons */}
             <div className="flex justify-between items-center mt-4">
               {editableField ? (
                 <>
