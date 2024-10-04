@@ -1,4 +1,4 @@
-import React, { useEffect ,useState } from 'react';
+import React, { useEffect } from 'react';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -170,7 +170,7 @@ useEffect(() => {
 
                 setFile(selectedFile);
                 setLoading(false);
-                
+                alert(`File uploaded successfully: ${selectedFile.name}`);
             } catch (error) {
                 console.error("Error storing file metadata in Firestore:", error);
                 setLoading(false);
@@ -235,36 +235,6 @@ useEffect(() => {
           </div>
         )}
       </div>
-
- {/* Confirmation Modal */}
-{isModalOpen && (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-        <div className={`rounded-lg shadow-lg p-6 max-w-sm w-full ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <h2 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Confirmation
-            </h2>
-            <p className={`${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
-                Do you want to save the uploaded file to the blockchain?
-            </p>
-            <div className="mt-4 flex justify-end">
-                <button
-                    className={`bg-red-500 text-white py-2 px-4 rounded-md mr-2 hover:bg-red-600`}
-                    onClick={handleCancel} // Close the modal without confirmation
-                >
-                    Cancel
-                </button>
-                <button
-                    className={`bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600`}
-                    onClick={handleConfirm} // Confirm action
-                >
-                    Confirm
-                </button>
-            </div>
-        </div>
-    </div>
-)}
-
-
 
       {/* Main Content */}
       <div className="flex-grow pt-12 pb-6 px-4 sm:px-6 lg:px-8">
