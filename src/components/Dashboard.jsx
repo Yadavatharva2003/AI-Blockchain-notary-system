@@ -9,6 +9,8 @@ import BlockchainLoader from './BlockchainLoader';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { storage, db } from './firebase';
 import { doc, collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { Dialog, Transition } from '@headlessui/react';
+import { Fragment } from 'react';
 
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
@@ -108,10 +110,14 @@ useEffect(() => {
     setShowOptions(!showOptions);
   };
 
+  const [showUploadConfirmation, setShowUploadConfirmation] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+
   const handleFileChange = (event) => {
-    const selectedFile = event.target.files[0];
-    if (selectedFile) {
-      handleFileUpload(selectedFile);
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setShowUploadConfirmation(true);
     }
   };
 
@@ -120,8 +126,19 @@ useEffect(() => {
     setDragging(false);
     const droppedFiles = event.dataTransfer.files;
     if (droppedFiles.length > 0) {
-      handleFileUpload(droppedFiles[0]);
+      setSelectedFile(droppedFiles[0]);
+      setShowUploadConfirmation(true);
     }
+  };
+
+  const confirmUpload = () => {
+    setShowUploadConfirmation(false);
+    handleFileUpload(selectedFile);
+  };
+
+  const cancelUpload = () => {
+    setShowUploadConfirmation(false);
+    setSelectedFile(null);
   };
 
   const showPopupMessage = (message, duration = 3000) => {
@@ -434,6 +451,68 @@ useEffect(() => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Upload Confirmation Dialog */}
+      <Transition appear show={showUploadConfirmation} as={Fragment}>
+        <Dialog as="div" className="relative z-10" onClose={cancelUpload}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className={`w-full max-w-md transform overflow-hidden rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 text-left align-middle shadow-xl transition-all`}>
+                  <Dialog.Title
+                    as="h3"
+                    className={`text-lg font-medium leading-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    Upload File to Blockchain
+                  </Dialog.Title>
+                  <div className="mt-2">
+                    <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                      Are you sure you want to upload "{selectedFile?.name}" to the blockchain?
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      className={`inline-flex justify-center rounded-md border border-transparent ${darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-100 hover:bg-blue-200'} px-4 py-2 text-sm font-medium ${darkMode ? 'text-white' : 'text-blue-900'} focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2`}
+                      onClick={confirmUpload}
+                    >
+                      Upload
+                    </button>
+                    <button
+                      type="button"
+                      className={`inline-flex justify-center rounded-md border border-transparent ${darkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'} px-4 py-2 text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'} focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2`}
+                      onClick={cancelUpload}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 };
