@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, Download, Trash, Moon, Sun } from 'lucide-react';
+import { ArrowLeft, Eye, Download, Trash, Moon, Sun, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const DashboardHistory = () => {
@@ -13,11 +13,30 @@ const DashboardHistory = () => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
+  const [expandedIndex, setExpandedIndex] = useState(null);
 
   const documentHistory = [
-    { fileName: 'Document1.pdf', status: 'Verified', uploadDate: '2023-05-01', uploadTime: '10:00 AM' },
-    { fileName: 'Document2.pdf', status: 'In Progress', uploadDate: '2023-05-02', uploadTime: '2:30 PM' },
-    { fileName: 'Document3.pdf', status: 'Rejected', uploadDate: '2023-05-03', uploadTime: '4:15 PM' },
+    { 
+      fileName: 'Document1.pdf', 
+      status: 'Verified', 
+      uploadDate: '2023-05-01', 
+      uploadTime: '10:00 AM',
+      details: "Document verified successfully. All criteria met."
+    },
+    { 
+      fileName: 'Document2.pdf', 
+      status: 'In Progress', 
+      uploadDate: '2023-05-02', 
+      uploadTime: '2:30 PM',
+      details: "Document is currently under review."
+    },
+    { 
+      fileName: 'Document3.pdf', 
+      status: 'Rejected', 
+      uploadDate: '2023-05-03', 
+      uploadTime: '4:15 PM',
+      details: "Document rejected due to missing witness signatures."
+    },
   ];
 
   // Filter and sort documents
@@ -38,6 +57,11 @@ const DashboardHistory = () => {
     navigate('/dashboard');  // This ensures redirection to Dashboard.jsx
   };
 
+  const handleInfoClick = (index) => {
+    // If the clicked index is already expanded, collapse it; otherwise, expand the clicked one
+    setExpandedIndex(expandedIndex === index ? null : index);
+  };
+
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -52,7 +76,6 @@ const DashboardHistory = () => {
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute inset-0 bg-gradient-to-br ${darkMode ? 'from-blue-900 to-purple-900' : 'from-blue-500 to-purple-700'} opacity-20 animate-gradient-x`} />
-        <div className={`absolute inset-0 bg-[url('/placeholder.svg?height=200&width=200')] bg-repeat ${darkMode ? 'opacity-3' : 'opacity-5'} animate-pan-background`} />
         <svg className="absolute bottom-0 left-0 w-full" viewBox="0 0 1440 320" preserveAspectRatio="none">
           <path 
             fill={darkMode ? 'rgba(30, 41, 59, 0.7)' : 'rgba(229, 231, 235, 0.7)'} 
@@ -119,41 +142,62 @@ const DashboardHistory = () => {
                 <option value="uploadDate" className="hover:bg-gray-200">Sort by Date Modified</option>
               </select>
             </div>
-            <div className={`shadow overflow-hidden sm:rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className={`bg-gray-50 ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-50'}`}>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload Time</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y divide-gray-200 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                  {filteredDocuments.map((doc, index) => (
-                    <tr key={index} className={`${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{doc.fileName}</td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{doc.status}</td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{doc.uploadDate}</td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{doc.uploadTime}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex space-x-2">
-                          <button title="View" className={`text-blue-600 hover:text-blue-800 ${darkMode ? 'text-blue-300' : 'text-blue-600'} transition-transform duration-300 hover:scale-110`}>
-                            <Eye size={20} />
-                          </button>
-                          <button title="Download" className={`text-green-600 hover:text-green-800 ${darkMode ? 'text-green-300' : 'text-green-600'} transition-transform duration-300 hover:scale-110`}>
-                            <Download size={20} />
-                          </button>
-                          <button title="Delete" className={`text-red-600 hover:text-red-800 ${darkMode ? 'text-red-300' : 'text-red-600'} transition-transform duration-300 hover:scale-110`}>
-                            <Trash size={20} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Header Row */}
+            <div className={`grid grid-cols-5 gap-4 font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'} border-b-2 border-gray-300`}>
+              <div className="py-2 pl-4 border-l-4 border-blue-500">File Name</div> {/* Added border and padding */}
+              <div className="py-2">Status</div>
+              <div className="py-2">Upload Date</div>
+              <div className="py-2">Upload Time</div>
+              <div className="py-2">Action</div>
+            </div>
+
+            {/* Document Cards */}
+            <div className="flex flex-col space-y-4 mt-4">
+              {filteredDocuments.map((doc, index) => (
+                <motion.div 
+                  key={index} 
+                  className={`border rounded-lg p-4 transition-all duration-300 ${darkMode ? 'bg-gray-800' : 'bg-white'} cursor-pointer w-full`}
+                >
+                  <div className="grid grid-cols-5 items-center">
+                    <div className="text-lg">{doc.fileName}</div>
+                    <div>{doc.status}</div>
+                    <div>{doc.uploadDate}</div>
+                    <div>{doc.uploadTime}</div>
+                    <div className="flex space-x-2">
+                      <button title="View" className={`text-blue-600 hover:text-blue-800 ${darkMode ? 'text-blue-300' : 'text-blue-600'} transition-transform duration-300`}>
+                        <Eye size={20} />
+                      </button>
+                      <button title="Download" className={`text-green-600 hover:text-green-800 ${darkMode ? 'text-green-300' : 'text-green-600'} transition-transform duration-300`}>
+                        <Download size={20} />
+                      </button>
+                      <button title="Delete" className={`text-red-600 hover:text-red-800 ${darkMode ? 'text-red-300' : 'text-red-600'} transition-transform duration-300`}>
+                        <Trash size={20} />
+                      </button>
+                      <button title="Info" onClick={() => handleInfoClick(index)} className={`text-gray-600 hover:text-gray-800 ${darkMode ? 'text-gray-300' : 'text-gray-600'} transition-transform duration-300`}>
+                        <Info size={20} />
+                      </button>
+                    </div>
+                  </div>
+                  {expandedIndex === index && (
+                    <div className="mt-4">
+                      <h3 className="font-bold">Details:</h3>
+                      <p>{doc.details}</p>
+                      <h4 className="font-semibold mt-2">Verification Criteria:</h4>
+                      <ul className="list-disc list-inside">
+                        <li><strong>Legal Document Type:</strong> Check if the document type is correct.</li>
+                        <li><strong>Consideration Mentioned:</strong> Ensure consideration is stated.</li>
+                        <li><strong>Complete Legal Property Description:</strong> Verify property descriptions.</li>
+                        <li><strong>Correct Use of Terminology:</strong> Ensure terms are used consistently.</li>
+                        <li><strong>Witness Requirements:</strong> Check for necessary witness signatures.</li>
+                        <li><strong>Notary Section Completeness:</strong> Ensure notary details are complete.</li>
+                        <li><strong>Effective Date of Transfer:</strong> Verify the effective date is clear.</li>
+                        <li><strong>Jurat or Acknowledgment Statement:</strong> Ensure the correct statement is used.</li>
+                      </ul>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
             </div>
           </motion.main>
         </div>
