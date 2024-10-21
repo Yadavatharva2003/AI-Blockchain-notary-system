@@ -8,6 +8,7 @@ import SignUp from './components/SignUp';
 import AboutUs from './components/AboutUs'; // Add this import
 import AccountSettings from './components/AccountSettings'; // Add this import
 
+
 const App = () => {
   return (
     <Router>

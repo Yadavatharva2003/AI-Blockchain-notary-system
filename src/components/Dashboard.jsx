@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -15,8 +13,7 @@ import { Fragment } from 'react';
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
   const [file, setFile] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [progress, setProgress] = React.useState(0); // State for upload progress
+ 
   const [darkMode, setDarkMode] = React.useState(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
@@ -27,7 +24,8 @@ const Dashboard = () => {
   const [dragging, setDragging] = React.useState(false);
   
   const [popupMessage, setPopupMessage] = useState(null);
-  
+  const [loading, setLoading] = React.useState(false);
+  const [progress, setProgress] = React.useState(0); // State for upload progress
 
   const [documentStatuses, setDocumentStatuses] = React.useState([
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 0 }, // Start with 0
@@ -35,6 +33,7 @@ const Dashboard = () => {
     { title: 'Verified Documents', icon: <CheckCircle size={32} />, count: 0 },
     { title: 'Rejected Documents', icon: <XCircle size={32} />, count: 0 },
 ]);
+
 
 useEffect(() => {
   const auth = getAuth();
@@ -93,6 +92,7 @@ useEffect(() => {
 
 
 
+
   const sidebarItems = [
     { title: 'Sign Out', icon: <LogOut size={24} />, action: handleSignOut },
     { title: 'Account Settings', icon: <Settings size={24} />, action: () => navigate('/account-settings') },
@@ -139,7 +139,16 @@ useEffect(() => {
   const cancelUpload = () => {
     setShowUploadConfirmation(false);
     setSelectedFile(null);
-  };
+    setFile(null); // Resetting file to allow a new upload
+    setProgress(0); // Reset progress
+    showPopupMessage("Upload canceled."); // Show a cancellation message
+    setTimeout(() => {
+      window.location.reload(); // This will refresh the page
+  }, 1000);
+    
+};
+
+
 
   const showPopupMessage = (message, duration = 3000) => {
     setPopupMessage(message);
@@ -147,6 +156,7 @@ useEffect(() => {
   };
 
   const handleFileUpload = (selectedFile) => {
+    if (!selectedFile) return; // Guard clause
     setLoading(true);
     setProgress(0);
 
@@ -341,7 +351,7 @@ useEffect(() => {
             >
               {loading ? (
                 <div className="w-full max-w-md flex flex-col items-center">
-                  <BlockchainLoader /> {/* Show the blockchain loader */}
+                  <BlockchainLoader />
                   <span className="text-center text-sm font-semibold">{progress}%</span>
                 </div>
               ) : (
@@ -378,19 +388,23 @@ useEffect(() => {
                   />
                 </motion.div>
               )}
+              {/* Upload History Link */}
+              {!loading && (
               <motion.div
                 initial="initial"
                 whileHover="hover"
                 whileTap="tap"
                 variants={hoverVariants}
               >
-                <Link 
+                
+                { <Link 
                   to="/history"
                   className="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-full flex items-center"
                 >
                   View Upload History <List className="ml-2" size={16} />
-                </Link>
+                </Link> }
               </motion.div>
+              )}
             </motion.div>
 
             {/* Recent Activities */}
@@ -487,7 +501,7 @@ useEffect(() => {
                   </Dialog.Title>
                   <div className="mt-2">
                     <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-                      Are you sure you want to upload "{selectedFile?.name}" to the blockchain?
+                      Are you sure you want to verify and upload "{selectedFile?.name}" to the blockchain?
                     </p>
                   </div>
 

@@ -80,3 +80,6 @@ const documentPath = "C:/Users/thawa/Documents/Sample Notary/NOTARIZED DECLARATI
 
 // Run the verification process
 run(documentPath);
+module.exports = {
+  run, // Export the run function for use in other files
+};
