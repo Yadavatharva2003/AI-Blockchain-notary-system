@@ -205,7 +205,7 @@ export default function EnhancedHomepage() {
               ))}
             </ul>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" href="/login">Login</Button>
+              <Button variant="primary" href="/login">Login</Button>
               <Button href="/signup">Sign Up</Button>
               <Button
                 variant="ghost"
