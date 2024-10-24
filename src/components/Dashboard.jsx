@@ -10,6 +10,7 @@ import { doc, collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
+
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
   const [file, setFile] = React.useState(null);
@@ -18,7 +19,10 @@ const Dashboard = () => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
-  
+
+  const geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'; // Your Gemini API endpoint
+  const apiKey = 'AIzaSyDX9NzMtj3lcxHvHFiTI6hX9zFAiiG1qAM'; // Add your API key here
+
   const [user, setUser] = React.useState(null); // State to store user info
   const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
@@ -26,6 +30,7 @@ const Dashboard = () => {
   const [popupMessage, setPopupMessage] = useState(null);
   const [loading, setLoading] = React.useState(false);
   const [progress, setProgress] = React.useState(0); // State for upload progress
+  const predefinedPrompt = "Please verify this document for legal compliance, check for fraud, and ensure it meets notary standards.";
 
   const [documentStatuses, setDocumentStatuses] = React.useState([
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 0 }, // Start with 0
@@ -77,8 +82,37 @@ useEffect(() => {
 }, [navigate]);
 
 
+async function verifyDocument(docData) {
+  try {
+      const response = await fetch(geminiApiUrl, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`, // API key for authentication
+          },
+          body: JSON.stringify({
+              document: docData,
+              model: 'Gemini 1.5 Pro 002', // Specify the model version
+              task: 'verify_notary_document', // Task name for document verification
+              prompt: predefinedPrompt // The predefined prompt for document verification
+          }),
+      });
+      const result = await response.json();
+      return result;
+  } catch (error) {
+      console.error('Error verifying document:', error);
+      throw error;
+  }
+}
 
-
+function convertFileToBase64(file) {
+  return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+  });
+}
   const handleSignOut = async () => {
     const auth = getAuth();
     try {
@@ -201,6 +235,17 @@ useEffect(() => {
                 setFile(selectedFile);
                 setLoading(false);
                 showPopupMessage(`File uploaded successfully: ${selectedFile.name}`);
+                const fileData = await convertFileToBase64(file);
+
+                // Call verifyDocument to send the file for verification
+                const verificationResult = await verifyDocument(fileData);
+        
+                // Handle the verification result
+                if (verificationResult.isValid) {
+                  showPopupMessage('Document verified successfully!');
+                } else {
+                  showPopupMessage('Document verification failed.');
+                }
             } catch (error) {
                 console.error("Error storing file metadata in Firestore:", error);
                 setLoading(false);
