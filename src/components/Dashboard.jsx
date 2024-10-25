@@ -121,11 +121,7 @@ useEffect(() => {
   const [showUploadConfirmation, setShowUploadConfirmation] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
  
-  const getRecentActivities = () => {
-    return recentActivities
-        .sort((a, b) => new Date(b.time) - new Date(a.time)) // Sort by time descending
-        .slice(0, 3); // Get the latest 3 activities
-};
+  
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -170,93 +166,118 @@ useEffect(() => {
   };
 
   const handleFileUpload = async (selectedFile) => {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+        showPopupMessage("No file selected");
+        return;
+    }
+
     setLoading(true);
     setProgress(0);
 
     try {
-        // First upload to Firebase
+        // 1. Upload to Firebase Storage
         const storageRef = ref(storage, `uploads/${selectedFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, selectedFile);
 
-        uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                setProgress(progress);
-            },
-            (error) => {
-                console.error("Upload failed:", error);
-                setLoading(false);
-                showPopupMessage("Upload failed. Please try again.");
-            },
-            async () => {
-                try {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-                    // Create FormData for server upload
-                    const formData = new FormData();
-                    formData.append('file', selectedFile);
-
-                    // Send to verification server
-                    const verificationResponse = await fetch('http://localhost:3001/api/verify', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (!verificationResponse.ok) {
-                        throw new Error('Verification failed');
+        // Create a promise for the storage upload
+        const uploadResult = await new Promise((resolve, reject) => {
+            uploadTask.on(
+                'state_changed',
+                (snapshot) => {
+                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    setProgress(progress);
+                },
+                (error) => {
+                    console.error("Storage upload error:", error);
+                    reject(error);
+                },
+                async () => {
+                    try {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        resolve(downloadURL);
+                    } catch (error) {
+                        reject(error);
                     }
-
-                    const verificationResult = await verificationResponse.json();
-
-                    // Set file metadata including verification results
-                    const fileMetadata = {
-                        name: selectedFile.name,
-                        size: selectedFile.size,
-                        type: selectedFile.type,
-                        downloadURL,
-                        uploadTime: new Date(),
-                        verificationStatus: verificationResult.status,
-                        verificationDetails: verificationResult.details,
-                        verifiedCount: verificationResult.status === 'Verified' ? 1 : 0, // Initialize count
-                        rejectedCount: verificationResult.status === 'Rejected' ? 1 : 0 // Initialize count
-
-                    };
-                    
-                  const verificationActivity = {
-                    title: `Document ${selectedFile.name} was ${verificationResult.status}.`,
-                    time: new Date().toISOString(),
-                    status: verificationResult.status === 'Verified' ? 'Approved' : 'Rejected'
-                };
-
-                // Update recent activities with the verification result
-                setRecentActivities((prevActivities) => [...prevActivities, verificationActivity]);
-
-                    // Store in Firestore
-                    if (user) {
-                        const userDocRef = doc(db, "users", user.uid);
-                        const userFilesCollection = collection(userDocRef, "uploadedFiles");
-                        await addDoc(userFilesCollection, fileMetadata);
-                    }
-
-                    setFile(selectedFile);
-                    setLoading(false);
-                    showPopupMessage(`File uploaded and verified: ${verificationResult.status}`);
-                   
-                    
-
-                } catch (error) {
-                    console.error("Error in file processing:", error);
-                    setLoading(false);
-                    showPopupMessage("Error processing file. Please try again.");
                 }
+            );
+        });
+
+        console.log("Storage upload completed, URL:", uploadResult);
+
+        // 2. Prepare file for verification
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        // 3. Send to verification server
+        let verificationResult;
+        try {
+            const verificationResponse = await fetch('http://localhost:3001/api/verify', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!verificationResponse.ok) {
+                console.warn("Verification response not OK:", verificationResponse.status);
+                verificationResult = {
+                    status: 'In Progress',
+                    details: 'Pending verification'
+                };
+            } else {
+                verificationResult = await verificationResponse.json();
+                console.log("Verification result:", verificationResult);
             }
-        );
+        } catch (verifyError) {
+            console.warn("Verification error:", verifyError);
+            verificationResult = {
+                status: 'In Progress',
+                details: 'Pending verification'
+            };
+        }
+
+        // 4. Save to Firestore
+        if (user) {
+            const fileMetadata = {
+                name: selectedFile.name,
+                size: selectedFile.size,
+                type: selectedFile.type,
+                downloadURL: uploadResult,
+                uploadTime: new Date(),
+                verificationStatus: verificationResult?.status || 'In Progress',
+                verificationDetails: verificationResult?.details || 'Processing',
+                verifiedCount: verificationResult?.status === 'Verified' ? 1 : 0,
+                rejectedCount: verificationResult?.status === 'Rejected' ? 1 : 0
+            };
+
+            try {
+                const userDocRef = doc(db, "users", user.uid);
+                const userFilesCollection = collection(userDocRef, "uploadedFiles");
+                await addDoc(userFilesCollection, fileMetadata);
+                
+                console.log("File metadata saved to Firestore successfully");
+                showPopupMessage("File uploaded successfully!");
+
+                // Update UI
+                setFile(selectedFile);
+                setProgress(100);
+
+                // Refresh page after short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+
+            } catch (firestoreError) {
+                console.error("Firestore error:", firestoreError);
+                throw new Error("Failed to save file metadata");
+            }
+        } else {
+            throw new Error("User not authenticated");
+        }
+
     } catch (error) {
-        console.error("Error in upload:", error);
+        console.error("Error in upload process:", error);
+        showPopupMessage("Error processing file. Please try again.");
+    } finally {
         setLoading(false);
-        showPopupMessage("Upload failed. Please try again.");
     }
 };
 
