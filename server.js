@@ -49,15 +49,7 @@ async function readWordDocument(filePath) {
 async function verifyDocument(documentContent) {
   try {
     const predefinedPrompt = `
-    Please verify this document for legal compliance and notary standards. Check for:
-    1. Legal Document Type
-    2. Consideration Mentioned
-    3. Complete Legal Property Description
-    4. Correct Use of Terminology
-    5. Witness Requirements
-    6. Notary Section Completeness
-    7. Effective Date of Transfer
-    8. Jurat or Acknowledgment Statement
+    Please verify this document for legal compliance and notary standards. 
     
     Document Content:
     ${documentContent}
