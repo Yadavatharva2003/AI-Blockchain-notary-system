@@ -6,22 +6,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { storage, db } from './firebase';
-import { doc, collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { doc, collection, addDoc, onSnapshot ,query,orderBy,limit} from 'firebase/firestore';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
 
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
-  const [file, setFile] = React.useState(null);
+  const  setFile= React.useState(null);
  
   const [darkMode, setDarkMode] = React.useState(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
 
-  const geminiApiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'; // Your Gemini API endpoint
-  const apiKey = 'AIzaSyDX9NzMtj3lcxHvHFiTI6hX9zFAiiG1qAM'; // Add your API key here
+  
 
   const [user, setUser] = React.useState(null); // State to store user info
   const navigate = useNavigate();
@@ -30,8 +29,7 @@ const Dashboard = () => {
   const [popupMessage, setPopupMessage] = useState(null);
   const [loading, setLoading] = React.useState(false);
   const [progress, setProgress] = React.useState(0); // State for upload progress
-  const predefinedPrompt = "Please verify this document for legal compliance, check for fraud, and ensure it meets notary standards.";
-
+ 
   const [documentStatuses, setDocumentStatuses] = React.useState([
     { title: 'Uploaded Documents', icon: <Upload size={32} />, count: 0 }, // Start with 0
     { title: 'In Progress', icon: <Clock size={32} />, count: 0 },
@@ -39,9 +37,11 @@ const Dashboard = () => {
     { title: 'Rejected Documents', icon: <XCircle size={32} />, count: 0 },
 ]);
 
+const [recentActivities, setRecentActivities] = React.useState([]); // Initialize as empty
 
 useEffect(() => {
   const auth = getAuth();
+  
   const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
           setUser(currentUser); // Set user if logged in
@@ -49,13 +49,23 @@ useEffect(() => {
           // Firestore listener for uploaded files
           const userDocRef = doc(db, "users", currentUser.uid);
           const userFilesCollection = collection(userDocRef, "uploadedFiles");
-
+        
           // Set up the onSnapshot listener
-          const unsubscribeFiles = onSnapshot(userFilesCollection, (snapshot) => {
-            const uploaded = snapshot.docs.filter(doc => doc.exists()).length; // Count of uploaded documents
-            const inProgress = snapshot.docs.filter(doc => doc.data().verificationStatus === 'In Progress').length; // Count of in progress documents
-            const verified = snapshot.docs.filter(doc => doc.data().verificationStatus === 'Verified').length; // Count of verified documents
-            const rejected = snapshot.docs.filter(doc => doc.data().verificationStatus === 'Rejected').length; // Count of rejected documents
+          const unsubscribeFiles = onSnapshot(
+            query(userFilesCollection, orderBy('uploadTime', 'desc'), limit(3)),
+            (snapshot) => {
+                // Update recent activities from files
+                const recentFiles = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    time: doc.data().uploadTime.toDate().toISOString()
+                }));
+                setRecentActivities(recentFiles);
+                const allFiles = snapshot.docs;
+                const uploaded = allFiles.length;
+                const inProgress = allFiles.filter(doc => doc.data().verificationStatus === 'In Progress').length;
+                const verified = allFiles.filter(doc => doc.data().verificationStatus === 'Verified').length;
+                const rejected = allFiles.filter(doc => doc.data().verificationStatus === 'Rejected').length;
               // Update document statuses with the count of uploaded documents
               setDocumentStatuses((prevStatuses) =>
                   prevStatuses.map((status) => {
@@ -103,8 +113,7 @@ useEffect(() => {
     { title: 'Help Center', icon: <HelpCircle size={24} />, action: () => navigate('/help') },
   ];
 
-  const [recentActivities, setRecentActivities] = React.useState([]); // Initialize as empty
-
+  
   const toggleOptions = () => {
     setShowOptions(!showOptions);
   };
@@ -250,6 +259,7 @@ useEffect(() => {
         showPopupMessage("Upload failed. Please try again.");
     }
 };
+
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
@@ -454,14 +464,14 @@ useEffect(() => {
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5, delay: 0.6 }}
 >
-    <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
-    {recentActivities.length === 0 ? ( // Check if there are no activities
-        <p className="text-gray-500">No recent activities available.</p> // Display message
+    <h2 className="text-xl font-bold mb-4">Recent Uploads</h2>
+    {recentActivities.length === 0 ? (
+        <p className="text-gray-500">No recent uploads available.</p>
     ) : (
         <ul className="space-y-2">
-            {getRecentActivities().map((activity, index) => (
+            {recentActivities.map((file, index) => (
                 <motion.li 
-                    key={index} 
+                    key={file.id} 
                     className={`p-4 rounded-lg shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
                     initial="initial"
                     whileHover="hover"
@@ -469,20 +479,21 @@ useEffect(() => {
                     variants={hoverVariants}
                 >
                     <div className="flex justify-between">
-                        {/* Title on the left */}
-                        <span>{activity.title}</span>
-                        
-                        {/* Date and Status on the right */}
-                        <div className="flex flex-col items-end">
-                            <span className="text-gray-500 dark:text-gray-400 text-sm">{activity.time}</span>
-                            <span 
-                                className={`mt-1 text-sm font-semibold ${
-                                    activity.status === 'Uploaded' ? 'text-blue-500' : 
-                                    activity.status === 'Approved' ? 'text-green-500' : 
-                                    'text-gray-500'
-                                }`}
-                            >
-                                {activity.status}
+                        <div className="flex flex-col">
+                            <span className="font-medium">{file.name}</span>
+                            <span className="text-sm text-gray-500">
+                                {new Date(file.time).toLocaleString()}
+                            </span>
+                        </div>
+                        <div className="flex items-center">
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                file.verificationStatus === 'Verified' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : file.verificationStatus === 'Rejected'
+                                    ? 'bg-red-100 text-red-800'
+                                    : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                                {file.verificationStatus}
                             </span>
                         </div>
                     </div>
@@ -491,6 +502,7 @@ useEffect(() => {
         </ul>
     )}
 </motion.div>
+
           </motion.main>
         </div>
       </div>
