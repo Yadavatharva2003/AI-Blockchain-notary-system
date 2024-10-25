@@ -52,11 +52,10 @@ useEffect(() => {
 
           // Set up the onSnapshot listener
           const unsubscribeFiles = onSnapshot(userFilesCollection, (snapshot) => {
-              const uploaded = snapshot.docs.filter(doc => doc.exists()).length; // Count of uploaded documents
-              const inProgress = 0; // Replace with your logic for 'in progress'
-              const verified = 0; // Replace with your logic for 'verified'
-              const rejected = 0; // Replace with your logic for 'rejected'
-
+            const uploaded = snapshot.docs.filter(doc => doc.exists()).length; // Count of uploaded documents
+            const inProgress = snapshot.docs.filter(doc => doc.data().verificationStatus === 'In Progress').length; // Count of in progress documents
+            const verified = snapshot.docs.filter(doc => doc.data().verificationStatus === 'Verified').length; // Count of verified documents
+            const rejected = snapshot.docs.filter(doc => doc.data().verificationStatus === 'Rejected').length; // Count of rejected documents
               // Update document statuses with the count of uploaded documents
               setDocumentStatuses((prevStatuses) =>
                   prevStatuses.map((status) => {
@@ -82,37 +81,7 @@ useEffect(() => {
 }, [navigate]);
 
 
-async function verifyDocument(docData) {
-  try {
-      const response = await fetch(geminiApiUrl, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`, // API key for authentication
-          },
-          body: JSON.stringify({
-              document: docData,
-              model: 'Gemini 1.5 Pro 002', // Specify the model version
-              task: 'verify_notary_document', // Task name for document verification
-              prompt: predefinedPrompt // The predefined prompt for document verification
-          }),
-      });
-      const result = await response.json();
-      return result;
-  } catch (error) {
-      console.error('Error verifying document:', error);
-      throw error;
-  }
-}
 
-function convertFileToBase64(file) {
-  return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-  });
-}
   const handleSignOut = async () => {
     const auth = getAuth();
     try {
@@ -134,11 +103,7 @@ function convertFileToBase64(file) {
     { title: 'Help Center', icon: <HelpCircle size={24} />, action: () => navigate('/help') },
   ];
 
-  const recentActivities = [
-    { title: 'Document Lease_Agreement.pdf was uploaded.', time: '2023-09-29 14:35', status: 'Uploaded' },
-    { title: 'Document Service_Contract.pdf was approved.', time: '2023-09-25 10:20', status: 'Approved' },
-    { title: 'Document Contract_Agreement.pdf was downloaded.', time: '2023-09-30 09:15', status: 'Downloaded' },
-  ];
+  const [recentActivities, setRecentActivities] = React.useState([]); // Initialize as empty
 
   const toggleOptions = () => {
     setShowOptions(!showOptions);
@@ -146,6 +111,12 @@ function convertFileToBase64(file) {
 
   const [showUploadConfirmation, setShowUploadConfirmation] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+ 
+  const getRecentActivities = () => {
+    return recentActivities
+        .sort((a, b) => new Date(b.time) - new Date(a.time)) // Sort by time descending
+        .slice(0, 3); // Get the latest 3 activities
+};
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -238,8 +209,20 @@ function convertFileToBase64(file) {
                         downloadURL,
                         uploadTime: new Date(),
                         verificationStatus: verificationResult.status,
-                        verificationDetails: verificationResult.details
+                        verificationDetails: verificationResult.details,
+                        verifiedCount: verificationResult.status === 'Verified' ? 1 : 0, // Initialize count
+                        rejectedCount: verificationResult.status === 'Rejected' ? 1 : 0 // Initialize count
+
                     };
+                    
+                  const verificationActivity = {
+                    title: `Document ${selectedFile.name} was ${verificationResult.status}.`,
+                    time: new Date().toISOString(),
+                    status: verificationResult.status === 'Verified' ? 'Approved' : 'Rejected'
+                };
+
+                // Update recent activities with the verification result
+                setRecentActivities((prevActivities) => [...prevActivities, verificationActivity]);
 
                     // Store in Firestore
                     if (user) {
@@ -251,11 +234,8 @@ function convertFileToBase64(file) {
                     setFile(selectedFile);
                     setLoading(false);
                     showPopupMessage(`File uploaded and verified: ${verificationResult.status}`);
+                   
                     
-                    // Refresh the page after a short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
 
                 } catch (error) {
                     console.error("Error in file processing:", error);
@@ -469,44 +449,48 @@ function convertFileToBase64(file) {
 
             {/* Recent Activities */}
             <motion.div 
-              className="mt-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-            >
-              <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
-              <ul className="space-y-2">
-                {recentActivities.map((activity, index) => (
-                  <motion.li 
+    className="mt-10"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay: 0.6 }}
+>
+    <h2 className="text-xl font-bold mb-4">Recent Activities</h2>
+    {recentActivities.length === 0 ? ( // Check if there are no activities
+        <p className="text-gray-500">No recent activities available.</p> // Display message
+    ) : (
+        <ul className="space-y-2">
+            {getRecentActivities().map((activity, index) => (
+                <motion.li 
                     key={index} 
                     className={`p-4 rounded-lg shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
                     initial="initial"
                     whileHover="hover"
                     whileTap="tap"
                     variants={hoverVariants}
-                  >
+                >
                     <div className="flex justify-between">
-                      {/* Title on the left */}
-                      <span>{activity.title}</span>
-                      
-                      {/* Date and Status on the right */}
-                      <div className="flex flex-col items-end">
-                        <span className="text-gray-500 dark:text-gray-400 text-sm">{activity.time}</span>
-                        <span 
-                          className={`mt-1 text-sm font-semibold ${
-                            activity.status === 'Uploaded' ? 'text-blue-500' : 
-                            activity.status === 'Approved' ? 'text-green-500' : 
-                            'text-gray-500'
-                          }`}
-                        >
-                          {activity.status}
-                        </span>
-                      </div>
+                        {/* Title on the left */}
+                        <span>{activity.title}</span>
+                        
+                        {/* Date and Status on the right */}
+                        <div className="flex flex-col items-end">
+                            <span className="text-gray-500 dark:text-gray-400 text-sm">{activity.time}</span>
+                            <span 
+                                className={`mt-1 text-sm font-semibold ${
+                                    activity.status === 'Uploaded' ? 'text-blue-500' : 
+                                    activity.status === 'Approved' ? 'text-green-500' : 
+                                    'text-gray-500'
+                                }`}
+                            >
+                                {activity.status}
+                            </span>
+                        </div>
                     </div>
-                  </motion.li>
-                ))}
-              </ul>
-            </motion.div>
+                </motion.li>
+            ))}
+        </ul>
+    )}
+</motion.div>
           </motion.main>
         </div>
       </div>
