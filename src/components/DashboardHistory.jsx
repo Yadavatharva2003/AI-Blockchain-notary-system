@@ -4,49 +4,57 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, Download, Trash, Moon, Sun, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getAuth } from 'firebase/auth';
+import { doc, collection, query, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 
 const DashboardHistory = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('fileName');
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(() => {
     const savedMode = localStorage.getItem('darkMode');
     return savedMode ? JSON.parse(savedMode) : false;
   });
   const [expandedIndex, setExpandedIndex] = useState(null);
 
-  const documentHistory = [
-    { 
-      fileName: 'Document1.pdf', 
-      status: 'Verified', 
-      uploadDate: '2023-05-01', 
-      uploadTime: '10:00 AM',
-      details: "Document verified successfully. All criteria met."
-    },
-    { 
-      fileName: 'Document2.pdf', 
-      status: 'In Progress', 
-      uploadDate: '2023-05-02', 
-      uploadTime: '2:30 PM',
-      details: "Document is currently under review."
-    },
-    { 
-      fileName: 'Document3.pdf', 
-      status: 'Rejected', 
-      uploadDate: '2023-05-03', 
-      uploadTime: '4:15 PM',
-      details: "Document rejected due to missing witness signatures."
-    },
-  ];
+  useEffect(() => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (user) {
+      const userDocRef = doc(db, "users", user.uid);
+      const userFilesCollection = collection(userDocRef, "uploadedFiles");
+      const q = query(userFilesCollection);
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          fileName: doc.data().name,
+          status: doc.data().verificationStatus,
+          uploadDate: new Date(doc.data().uploadTime.toDate()).toLocaleDateString(),
+          uploadTime: new Date(doc.data().uploadTime.toDate()).toLocaleTimeString(),
+          details: doc.data().verificationDetails
+        }));
+        setDocuments(docs);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    }
+  }, []);
 
   // Filter and sort documents
-  const filteredDocuments = documentHistory
+  const filteredDocuments = documents
     .filter(doc => doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === 'fileName') {
         return a.fileName.localeCompare(b.fileName);
       }
-      return new Date(a.uploadDate) - new Date(b.uploadDate);
+      return new Date(b.uploadTime) - new Date(a.uploadTime);
     });
 
   const handleToggleDarkMode = () => {
@@ -54,11 +62,10 @@ const DashboardHistory = () => {
   };
 
   const handleBackToDashboard = () => {
-    navigate('/dashboard');  // This ensures redirection to Dashboard.jsx
+    navigate('/dashboard');
   };
 
   const handleInfoClick = (index) => {
-    // If the clicked index is already expanded, collapse it; otherwise, expand the clicked one
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
@@ -70,6 +77,14 @@ const DashboardHistory = () => {
     }
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} transition-colors duration-500`}>
@@ -114,6 +129,7 @@ const DashboardHistory = () => {
               </button>
             </div>
           </motion.header>
+          
           <motion.main 
             className="max-w-7xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
@@ -130,22 +146,23 @@ const DashboardHistory = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <button className={`ml-2 px-4 py-2 text-white bg-blue-500 rounded-lg transition-transform duration-300`}>
+                <button className="ml-2 px-4 py-2 text-white bg-blue-500 rounded-lg transition-transform duration-300">
                   Search
                 </button>
               </div>
               <select
                 className={`border border-gray-300 rounded-lg px-4 py-2 transition-transform duration-300 ${darkMode ? 'bg-gray-800 text-white' : 'bg-white'} hover:scale-105`}
                 onChange={(e) => setSortBy(e.target.value)}
+                value={sortBy}
               >
-                <option value="fileName" className="hover:bg-gray-200">Sort by Name</option>
-                <option value="uploadDate" className="hover:bg-gray-200">Sort by Date Modified</option>
+                <option value="fileName">Sort by Name</option>
+                <option value="uploadDate">Sort by Date Modified</option>
               </select>
             </div>
 
             {/* Header Row */}
             <div className={`grid grid-cols-5 gap-4 font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'} border-b-2 border-gray-300`}>
-              <div className="py-2 pl-4 border-l-4 border-blue-500">File Name</div> {/* Added border and padding */}
+              <div className="py-2 pl-4 border-l-4 border-blue-500">File Name</div>
               <div className="py-2">Status</div>
               <div className="py-2">Upload Date</div>
               <div className="py-2">Upload Time</div>
@@ -156,12 +173,18 @@ const DashboardHistory = () => {
             <div className="flex flex-col space-y-4 mt-4">
               {filteredDocuments.map((doc, index) => (
                 <motion.div 
-                  key={index} 
+                  key={doc.id} 
                   className={`border rounded-lg p-4 transition-all duration-300 ${darkMode ? 'bg-gray-800' : 'bg-white'} cursor-pointer w-full`}
                 >
                   <div className="grid grid-cols-5 items-center">
                     <div className="text-lg">{doc.fileName}</div>
-                    <div>{doc.status}</div>
+                    <div className={`
+                      ${doc.status === 'Verified' ? 'text-green-500' : ''}
+                      ${doc.status === 'Rejected' ? 'text-red-500' : ''}
+                      ${doc.status === 'In Progress' ? 'text-yellow-500' : ''}
+                    `}>
+                      {doc.status}
+                    </div>
                     <div>{doc.uploadDate}</div>
                     <div>{doc.uploadTime}</div>
                     <div className="flex space-x-2">
@@ -174,26 +197,19 @@ const DashboardHistory = () => {
                       <button title="Delete" className={`text-red-600 hover:text-red-800 ${darkMode ? 'text-red-300' : 'text-red-600'} transition-transform duration-300`}>
                         <Trash size={20} />
                       </button>
-                      <button title="Info" onClick={() => handleInfoClick(index)} className={`text-gray-600 hover:text-gray-800 ${darkMode ? 'text-gray-300' : 'text-gray-600'} transition-transform duration-300`}>
+                      <button 
+                        title="Info" 
+                        onClick={() => handleInfoClick(index)} 
+                        className={`text-gray-600 hover:text-gray-800 ${darkMode ? 'text-gray-300' : 'text-gray-600'} transition-transform duration-300`}
+                      >
                         <Info size={20} />
                       </button>
                     </div>
                   </div>
                   {expandedIndex === index && (
                     <div className="mt-4">
-                      <h3 className="font-bold">Details:</h3>
-                      <p>{doc.details}</p>
-                      <h4 className="font-semibold mt-2">Verification Criteria:</h4>
-                      <ul className="list-disc list-inside">
-                        <li><strong>Legal Document Type:</strong> Check if the document type is correct.</li>
-                        <li><strong>Consideration Mentioned:</strong> Ensure consideration is stated.</li>
-                        <li><strong>Complete Legal Property Description:</strong> Verify property descriptions.</li>
-                        <li><strong>Correct Use of Terminology:</strong> Ensure terms are used consistently.</li>
-                        <li><strong>Witness Requirements:</strong> Check for necessary witness signatures.</li>
-                        <li><strong>Notary Section Completeness:</strong> Ensure notary details are complete.</li>
-                        <li><strong>Effective Date of Transfer:</strong> Verify the effective date is clear.</li>
-                        <li><strong>Jurat or Acknowledgment Statement:</strong> Ensure the correct statement is used.</li>
-                      </ul>
+                      <h3 className="font-bold">Verification Details:</h3>
+                      <p className="whitespace-pre-line">{doc.details}</p>
                     </div>
                   )}
                 </motion.div>

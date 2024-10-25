@@ -189,72 +189,87 @@ function convertFileToBase64(file) {
     setTimeout(() => setPopupMessage(null), duration);
   };
 
-  const handleFileUpload = (selectedFile) => {
-    if (!selectedFile) return; // Guard clause
+  const handleFileUpload = async (selectedFile) => {
+    if (!selectedFile) return;
     setLoading(true);
     setProgress(0);
 
-    const storageRef = ref(storage, `uploads/${selectedFile.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, selectedFile);
+    try {
+        // First upload to Firebase
+        const storageRef = ref(storage, `uploads/${selectedFile.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, selectedFile);
 
-    uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setProgress(progress);
-        },
-        (error) => {
-            console.error("Upload failed:", error);
-            setLoading(false);
-            showPopupMessage("Upload failed. Please try again.");
-        },
-        async () => {
-            try {
-                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                console.log("File available at", downloadURL);
-
-                // Set file metadata
-                const fileMetadata = {
-                    name: selectedFile.name,
-                    size: selectedFile.size,
-                    type: selectedFile.type,
-                    downloadURL,
-                    uploadTime: new Date(),
-                };
-
-                // Assuming user is logged in and user ID is available in `user` state
-                if (user) {
-                    const userDocRef = doc(db, "users", user.uid); // Reference to the user document
-                    const userFilesCollection = collection(userDocRef, "uploadedFiles"); // Sub-collection for user's files
-
-                    // Add file metadata to Firestore
-                    await addDoc(userFilesCollection, fileMetadata);
-                    console.log("File metadata successfully added to Firestore.");
-                }
-
-                setFile(selectedFile);
+        uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setProgress(progress);
+            },
+            (error) => {
+                console.error("Upload failed:", error);
                 setLoading(false);
-                showPopupMessage(`File uploaded successfully: ${selectedFile.name}`);
-                const fileData = await convertFileToBase64(file);
+                showPopupMessage("Upload failed. Please try again.");
+            },
+            async () => {
+                try {
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
-                // Call verifyDocument to send the file for verification
-                const verificationResult = await verifyDocument(fileData);
-        
-                // Handle the verification result
-                if (verificationResult.isValid) {
-                  showPopupMessage('Document verified successfully!');
-                } else {
-                  showPopupMessage('Document verification failed.');
+                    // Create FormData for server upload
+                    const formData = new FormData();
+                    formData.append('file', selectedFile);
+
+                    // Send to verification server
+                    const verificationResponse = await fetch('http://localhost:3001/api/verify', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!verificationResponse.ok) {
+                        throw new Error('Verification failed');
+                    }
+
+                    const verificationResult = await verificationResponse.json();
+
+                    // Set file metadata including verification results
+                    const fileMetadata = {
+                        name: selectedFile.name,
+                        size: selectedFile.size,
+                        type: selectedFile.type,
+                        downloadURL,
+                        uploadTime: new Date(),
+                        verificationStatus: verificationResult.status,
+                        verificationDetails: verificationResult.details
+                    };
+
+                    // Store in Firestore
+                    if (user) {
+                        const userDocRef = doc(db, "users", user.uid);
+                        const userFilesCollection = collection(userDocRef, "uploadedFiles");
+                        await addDoc(userFilesCollection, fileMetadata);
+                    }
+
+                    setFile(selectedFile);
+                    setLoading(false);
+                    showPopupMessage(`File uploaded and verified: ${verificationResult.status}`);
+                    
+                    // Refresh the page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+
+                } catch (error) {
+                    console.error("Error in file processing:", error);
+                    setLoading(false);
+                    showPopupMessage("Error processing file. Please try again.");
                 }
-            } catch (error) {
-                console.error("Error storing file metadata in Firestore:", error);
-                setLoading(false);
-                showPopupMessage("Error storing file metadata. Please try again.");
             }
-        }
-    );
+        );
+    } catch (error) {
+        console.error("Error in upload:", error);
+        setLoading(false);
+        showPopupMessage("Upload failed. Please try again.");
+    }
 };
- 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
