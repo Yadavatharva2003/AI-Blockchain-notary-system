@@ -8,7 +8,7 @@ import { getAuth } from 'firebase/auth';
 import { doc, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
 
-const DashboardHistory = () => {
+export default function DashboardHistory() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('fileName');
@@ -137,8 +137,8 @@ const DashboardHistory = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             {/* Search and Filter Section */}
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center">
+            <div className="mb-4 flex flex-col sm:flex-row items-center justify-between">
+              <div className="flex items-center mb-2 sm:mb-0">
                 <input
                   type="text"
                   placeholder="Search by file name..."
@@ -161,12 +161,12 @@ const DashboardHistory = () => {
             </div>
 
             {/* Header Row */}
-            <div className={`grid grid-cols-5 gap-4 font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'} border-b-2 border-gray-300`}>
-              <div className="py-2 pl-4 border-l-4 border-blue-500">File Name</div>
-              <div className="py-2">Status</div>
-              <div className="py-2">Upload Date</div>
-              <div className="py-2">Upload Time</div>
-              <div className="py-2">Action</div>
+            <div className={`grid grid-cols-1 sm:grid-cols-5 gap-6 font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'} border-b-2 border-gray-300`}>
+              <div className="header-cell py-2 pl-4 border-l-4 border-blue-500" style={{ minWidth: '250px' }}>File Name</div> {/* Increased width */}
+              <div className="header-cell py-2 text-center">Status</div> {/* Centered text */}
+              <div className="header-cell py-2 text-center">Upload Date</div> {/* Centered text */}
+              <div className="header-cell py-2 text-center">Upload Time</div> {/* Centered text */}
+              <div className="header-cell py-2 text-center">Action</div> {/* Centered text */}
             </div>
 
             {/* Document Cards */}
@@ -174,20 +174,21 @@ const DashboardHistory = () => {
               {filteredDocuments.map((doc, index) => (
                 <motion.div 
                   key={doc.id} 
-                  className={`border rounded-lg p-4 transition-all duration-300 ${darkMode ? 'bg-gray-800' : 'bg-white'} cursor-pointer w-full`}
+                  className={`border rounded-lg p-4 transition-transform duration-300 ${darkMode ? 'bg-gray-800' : 'bg-white'} cursor-pointer w-full hover:scale-105`} // Added zoom effect
+                  style={{ transitionDuration: '0.3s' }} // Slowed down the zoom effect
                 >
-                  <div className="grid grid-cols-5 items-center">
-                    <div className="text-lg">{doc.fileName}</div>
-                    <div className={`
-                      ${doc.status === 'Verified' ? 'text-green-500' : ''}
-                      ${doc.status === 'Rejected' ? 'text-red-500' : ''}
-                      ${doc.status === 'In Progress' ? 'text-yellow-500' : ''}
-                    `}>
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-6 items-center">
+                    <div className="data-cell text-lg break-words" style={{ minWidth: '250px' }}>{doc.fileName}</div> {/* Increased width */}
+                    <div className={`data-cell status text-center ${
+                      doc.status === 'Verified' ? 'text-green-500' : 
+                      doc.status === 'Rejected' ? 'text-red-500' : 
+                      doc.status === 'In Progress' ? 'text-yellow-500' : ''
+                    }`}>
                       {doc.status}
                     </div>
-                    <div>{doc.uploadDate}</div>
-                    <div>{doc.uploadTime}</div>
-                    <div className="flex space-x-2">
+                    <div className="data-cell text-center">{doc.uploadDate}</div>
+                    <div className="data-cell text-center">{doc.uploadTime}</div>
+                    <div className="data-cell flex space-x-2 justify-center">
                       <button title="View" className={`text-blue-600 hover:text-blue-800 ${darkMode ? 'text-blue-300' : 'text-blue-600'} transition-transform duration-300`}>
                         <Eye size={20} />
                       </button>
@@ -220,6 +221,4 @@ const DashboardHistory = () => {
       </div>
     </div>
   );
-};
-
-export default DashboardHistory;
+}
