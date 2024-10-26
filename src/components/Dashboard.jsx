@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle, Info, Moon, Sun, Home } from 'lucide-react';
+import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle,AlertTriangle, Info, Moon, Sun, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
@@ -13,7 +13,7 @@ import { Fragment } from 'react';
 
 const Dashboard = () => {
   const [showOptions, setShowOptions] = React.useState(false);
-  const  setFile= React.useState(null);
+  const   [file, setFile]= React.useState(null);
  
   const [darkMode, setDarkMode] = React.useState(() => {
     const savedMode = localStorage.getItem('darkMode');
@@ -26,7 +26,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
   
-  const [popupMessage, setPopupMessage] = useState(null);
+  const [popupMessage, setPopupMessage] = useState(null); // Will now store {text: string, type: string}
   const [loading, setLoading] = React.useState(false);
   const [progress, setProgress] = React.useState(0); // State for upload progress
  
@@ -51,21 +51,25 @@ useEffect(() => {
           const userFilesCollection = collection(userDocRef, "uploadedFiles");
         
           // Set up the onSnapshot listener
-          const unsubscribeFiles = onSnapshot(
-            query(userFilesCollection, orderBy('uploadTime', 'desc'), limit(3)),
-            (snapshot) => {
-                // Update recent activities from files
-                const recentFiles = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    time: doc.data().uploadTime.toDate().toISOString()
-                }));
-                setRecentActivities(recentFiles);
-                const allFiles = snapshot.docs;
-                const uploaded = allFiles.length;
-                const inProgress = allFiles.filter(doc => doc.data().verificationStatus === 'In Progress').length;
-                const verified = allFiles.filter(doc => doc.data().verificationStatus === 'Verified').length;
-                const rejected = allFiles.filter(doc => doc.data().verificationStatus === 'Rejected').length;
+          const recentActivitiesQuery = query(userFilesCollection, orderBy('uploadTime', 'desc'), limit(3));
+          const unsubscribeRecentActivities = onSnapshot(recentActivitiesQuery, (snapshot) => {
+              const recentFiles = snapshot.docs.map(doc => ({
+                  id: doc.id,
+                  ...doc.data(),
+                  time: doc.data().uploadTime.toDate().toISOString()
+              }));
+              setRecentActivities(recentFiles);
+          });
+
+          // Query for all files (for counting)
+          const allFilesQuery = query(userFilesCollection);
+          const unsubscribeAllFiles = onSnapshot(allFilesQuery, (snapshot) => {
+              const allFiles = snapshot.docs;
+              const uploaded = allFiles.length;
+              const inProgress = allFiles.filter(doc => doc.data().verificationStatus === 'In Progress').length;
+              const verified = allFiles.filter(doc => doc.data().verificationStatus === 'Verified').length;
+              const rejected = allFiles.filter(doc => doc.data().verificationStatus === 'Rejected').length;
+
               // Update document statuses with the count of uploaded documents
               setDocumentStatuses((prevStatuses) =>
                   prevStatuses.map((status) => {
@@ -80,12 +84,13 @@ useEffect(() => {
 
           // Return cleanup functions
           return () => {
-              unsubscribeFiles(); // Clean up Firestore listener
-          };
-      } else {
-          navigate('/login'); // Redirect to login if not authenticated
-      }
-  });
+            unsubscribeRecentActivities(); // Clean up recent activities listener
+            unsubscribeAllFiles(); // Clean up all files listener
+        };
+    } else {
+        navigate('/login'); // Redirect to login if not authenticated
+    }
+});
 
   return () => unsubscribeAuth(); // Clean up auth listener
 }, [navigate]);
@@ -160,14 +165,14 @@ useEffect(() => {
 
 
 
-  const showPopupMessage = (message, duration = 3000) => {
-    setPopupMessage(message);
-    setTimeout(() => setPopupMessage(null), duration);
-  };
+const showPopupMessage = (message, type = 'info', duration = 3000) => {
+  setPopupMessage({ text: message, type });
+  setTimeout(() => setPopupMessage(null), duration);
+};
 
   const handleFileUpload = async (selectedFile) => {
     if (!selectedFile) {
-        showPopupMessage("No file selected");
+        showPopupMessage("No file selected", "error");
         return;
     }
 
@@ -202,8 +207,6 @@ useEffect(() => {
             );
         });
 
-        console.log("Storage upload completed, URL:", uploadResult);
-
         // 2. Prepare file for verification
         const formData = new FormData();
         formData.append('file', selectedFile);
@@ -217,21 +220,36 @@ useEffect(() => {
             });
 
             if (!verificationResponse.ok) {
-                console.warn("Verification response not OK:", verificationResponse.status);
                 verificationResult = {
                     status: 'In Progress',
-                    details: 'Pending verification'
+                    details: 'Document verification in progress'
                 };
+                showPopupMessage("Document verification in progress", "info");
             } else {
                 verificationResult = await verificationResponse.json();
-                console.log("Verification result:", verificationResult);
+                
+                // Show status-specific popup message
+                switch(verificationResult.status) {
+                    case 'Verified':
+                        showPopupMessage("Document verified successfully!", "success");
+                        break;
+                    case 'Rejected':
+                        showPopupMessage("Document verification failed", "error");
+                        break;
+                    case 'In Progress':
+                        showPopupMessage("Document verification in progress", "info");
+                        break;
+                    default:
+                        showPopupMessage("Unknown verification status", "warning");
+                }
             }
         } catch (verifyError) {
             console.warn("Verification error:", verifyError);
             verificationResult = {
                 status: 'In Progress',
-                details: 'Pending verification'
+                details: 'Document verification in progress'
             };
+            showPopupMessage("Document verification in progress", "info");
         }
 
         // 4. Save to Firestore
@@ -242,10 +260,8 @@ useEffect(() => {
                 type: selectedFile.type,
                 downloadURL: uploadResult,
                 uploadTime: new Date(),
-                verificationStatus: verificationResult?.status || 'In Progress',
-                verificationDetails: verificationResult?.details || 'Processing',
-                verifiedCount: verificationResult?.status === 'Verified' ? 1 : 0,
-                rejectedCount: verificationResult?.status === 'Rejected' ? 1 : 0
+                verificationStatus: verificationResult.status,
+                verificationDetails: verificationResult.details,
             };
 
             try {
@@ -253,20 +269,12 @@ useEffect(() => {
                 const userFilesCollection = collection(userDocRef, "uploadedFiles");
                 await addDoc(userFilesCollection, fileMetadata);
                 
-                console.log("File metadata saved to Firestore successfully");
-                showPopupMessage("File uploaded successfully!");
-
-                // Update UI
                 setFile(selectedFile);
                 setProgress(100);
 
-                // Refresh page after short delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-
             } catch (firestoreError) {
                 console.error("Firestore error:", firestoreError);
+                showPopupMessage("Error saving document metadata", "error");
                 throw new Error("Failed to save file metadata");
             }
         } else {
@@ -275,12 +283,11 @@ useEffect(() => {
 
     } catch (error) {
         console.error("Error in upload process:", error);
-        showPopupMessage("Error processing file. Please try again.");
+        showPopupMessage("Error processing document", "error");
     } finally {
         setLoading(false);
     }
 };
-
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
@@ -319,6 +326,33 @@ useEffect(() => {
           ></path>
         </svg>
       </div>
+       {/* Popup Message */}
+       <AnimatePresence>
+            {popupMessage && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className={`fixed top-4 left-1/2 transform -translate-x-1/2 p-4 rounded-md shadow-lg ${
+                        popupMessage.type === 'success' 
+                            ? 'bg-green-500 text-white'
+                            : popupMessage.type === 'error'
+                            ? 'bg-red-500 text-white'
+                            : popupMessage.type === 'warning'
+                            ? 'bg-yellow-500 text-white'
+                            : darkMode 
+                                ? 'bg-gray-800 text-white' 
+                                : 'bg-white text-gray-900'
+                    } flex items-center space-x-2 z-50`}
+                >
+                    {popupMessage.type === 'success' && <CheckCircle size={20} />}
+                    {popupMessage.type === 'error' && <XCircle size={20} />}
+                    {popupMessage.type === 'warning' && <AlertTriangle size={20} />}
+                    {popupMessage.type === 'info' && <Info size={20} />}
+                    <span>{popupMessage.text}</span>
+                </motion.div>
+            )}
+        </AnimatePresence>
 
       <div className="relative z-10 flex h-screen">
         {/* Sidebar Container */}
@@ -528,21 +562,7 @@ useEffect(() => {
         </div>
       </div>
 
-      <AnimatePresence>
-        {popupMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className={`fixed bottom-4 right-4 p-4 rounded-md shadow-lg ${
-              darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-            }`}
-          >
-            {popupMessage}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+     
       {/* Upload Confirmation Dialog */}
       <Transition appear show={showUploadConfirmation} as={Fragment}>
         <Dialog as="div" className="relative z-10" onClose={cancelUpload}>

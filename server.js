@@ -18,7 +18,7 @@ app.use(fileUpload({
 app.use(express.json());
 app.use(express.static('public'));
 
-const apiKey = "AIzaSyBFBy0V5eetX-2mRYAwFh0FYCItaTP6wvc";
+const apiKey = "AIzaSyCGuyyrxMbaTHrHntV537ZrZt6U_X0X4zI";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
