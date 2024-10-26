@@ -1,111 +1,144 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract MultiPartyNotarization {
-    // Event emitted when a party signs the document
-    event DocumentSigned(
+contract DocumentNotarization {
+    // Event emitted when a document is notarized
+    event DocumentNotarized(
         bytes32 indexed documentHash,
-        address indexed signer,
+        address indexed notary,
+        uint256 timestamp,
+        uint256 expirationTime
+    );
+
+    // Event emitted when a notarization is revoked
+    event NotarizationRevoked(
+        bytes32 indexed documentHash,
+        address indexed notary,
         uint256 timestamp
     );
 
-    // Event emitted when a document is fully notarized (all parties have signed)
-    event DocumentFullyNotarized(
-        bytes32 indexed documentHash,
-        uint256 timestamp
-    );
-
-    // Struct to store information about the document and its signers
+    // Struct to store information about the notarized document
     struct NotarizedDocument {
-        address[] requiredSigners; // List of required signers for the document
-        mapping(address => bool) hasSigned; // Tracks which addresses have signed
-        uint256 signCount; // Number of signers who have signed
-        bool isFullyNotarized; // Status indicating whether the document is fully notarized
-        uint256 notarizationTime; // Timestamp when the document is fully notarized
+        address notary; // Address of the notary
+        uint256 notarizationTime; // Timestamp when the document was notarized
+        bool exists; // Status to check if the document is notarized
+        bool revoked; // Status to indicate if the notarization has been revoked
+        uint256 expirationTime; // Timestamp when the notarization expires
     }
 
     // Mapping to store notarized documents by their hash
     mapping(bytes32 => NotarizedDocument) public documents;
 
-    // Modifier to ensure that the sender is one of the required signers
-    modifier onlyRequiredSigner(bytes32 documentHash) {
-        require(
-            isRequiredSigner(documentHash, msg.sender),
-            "You are not a required signer for this document."
-        );
-        _;
-    }
+    // Optionally: Keep track of all document hashes (for searching)
+    bytes32[] private documentHashes;
+    uint256 private totalDocuments;
 
-    // Function to initialize a document with its required signers
-    function initializeDocument(
+    // Function to notarize a document
+    function notarizeDocument(
         bytes32 documentHash,
-        address[] memory signers
+        uint256 expirationDuration
     ) external {
         require(
-            documents[documentHash].requiredSigners.length == 0,
-            "Document already initialized."
+            !documents[documentHash].exists,
+            "Document is already notarized."
         );
-        require(signers.length > 1, "At least two signers are required.");
 
-        // Create a new NotarizedDocument with the list of required signers
-        NotarizedDocument storage doc = documents[documentHash];
-        doc.requiredSigners = signers;
+        uint256 expirationTime = block.timestamp + expirationDuration;
+
+        // Create a new notarized document entry
+        documents[documentHash] = NotarizedDocument({
+            notary: msg.sender,
+            notarizationTime: block.timestamp,
+            exists: true,
+            revoked: false,
+            expirationTime: expirationTime // Set the expiration time
+        });
+
+        // Add document hash to the tracking array
+        addDocumentHash(documentHash);
+
+        emit DocumentNotarized(
+            documentHash,
+            msg.sender,
+            block.timestamp,
+            expirationTime
+        );
     }
 
-    // Function to sign the document as a required signer
-    function signDocument(
-        bytes32 documentHash
-    ) external onlyRequiredSigner(documentHash) {
+    // Function to revoke a notarization
+    function revokeNotarization(bytes32 documentHash) external {
         NotarizedDocument storage doc = documents[documentHash];
-
-        // Ensure the document is not fully notarized yet
-        require(!doc.isFullyNotarized, "Document is already fully notarized.");
-        // Ensure the signer hasn't signed yet
+        require(doc.exists, "Document is not notarized.");
         require(
-            !doc.hasSigned[msg.sender],
-            "You have already signed this document."
+            msg.sender == doc.notary,
+            "Only the notary can revoke this notarization."
         );
+        require(!doc.revoked, "Notarization has already been revoked.");
 
-        // Mark the signer as having signed
-        doc.hasSigned[msg.sender] = true;
-        doc.signCount++;
+        // Revoke the notarization
+        doc.revoked = true;
 
-        // Emit event for document signing
-        emit DocumentSigned(documentHash, msg.sender, block.timestamp);
-
-        // If all required parties have signed, mark the document as fully notarized
-        if (doc.signCount == doc.requiredSigners.length) {
-            doc.isFullyNotarized = true;
-            doc.notarizationTime = block.timestamp;
-            emit DocumentFullyNotarized(documentHash, block.timestamp);
-        }
+        emit NotarizationRevoked(documentHash, msg.sender, block.timestamp);
     }
 
-    // Function to verify whether a document is fully notarized
-    function isFullyNotarized(
+    // Function to check if a document is notarized
+    function isDocumentNotarized(
         bytes32 documentHash
     ) external view returns (bool) {
-        return documents[documentHash].isFullyNotarized;
+        NotarizedDocument storage doc = documents[documentHash];
+        return doc.exists && !doc.revoked && !isDocumentExpired(documentHash);
     }
 
-    // Function to check whether an address is a required signer for a document
-    function isRequiredSigner(
-        bytes32 documentHash,
-        address signer
+    // Function to check if a document is expired
+    function isDocumentExpired(
+        bytes32 documentHash
     ) public view returns (bool) {
         NotarizedDocument storage doc = documents[documentHash];
-        for (uint i = 0; i < doc.requiredSigners.length; i++) {
-            if (doc.requiredSigners[i] == signer) {
-                return true;
-            }
-        }
-        return false;
+        return
+            doc.exists && !doc.revoked && block.timestamp > doc.expirationTime;
     }
 
-    // Helper function to hash the document off-chain (optional; typically done by AI or off-chain systems)
-    function hashDocument(
-        string memory documentContent
-    ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(documentContent));
+    // Function to search for notarized documents by notary address
+    function searchDocumentsByNotary(
+        address notary
+    ) external view returns (bytes32[] memory) {
+        uint256 count = 0;
+
+        // Count how many documents this notary has notarized
+        for (uint256 i = 0; i < totalDocuments; i++) {
+            bytes32 docHash = documentHashes[i]; // Assuming you maintain an array of document hashes
+            if (
+                documents[docHash].notary == notary &&
+                !documents[docHash].revoked &&
+                !isDocumentExpired(docHash)
+            ) {
+                count++;
+            }
+        }
+
+        // Create an array to store the found document hashes
+        bytes32[] memory foundDocuments = new bytes32[](count);
+        uint256 index = 0;
+
+        // Populate the foundDocuments array
+        for (uint256 i = 0; i < totalDocuments; i++) {
+            bytes32 docHash = documentHashes[i];
+            if (
+                documents[docHash].notary == notary &&
+                !documents[docHash].revoked &&
+                !isDocumentExpired(docHash)
+            ) {
+                foundDocuments[index] = docHash;
+                index++;
+            }
+        }
+
+        return foundDocuments;
+    }
+
+    // Helper function to add document hashes to the array
+    function addDocumentHash(bytes32 documentHash) internal {
+        documentHashes.push(documentHash);
+        totalDocuments++;
     }
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { Upload, Clock, CheckCircle, XCircle, List, ChevronRight, LogOut, Settings, HelpCircle,AlertTriangle, Info, Moon, Sun, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import BlockchainLoader from './BlockchainLoader';
@@ -8,7 +8,26 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { storage, db } from './firebase';
 import { doc, collection, addDoc, onSnapshot ,query,orderBy,limit} from 'firebase/firestore';
 import { Dialog, Transition } from '@headlessui/react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import { Fragment } from 'react';
+import {
+    getCurrentAccount,
+    searchDocumentsByNotary,
+    getDocumentDetails,
+    isDocumentExpired,
+    isDocumentNotarized,
+    listenToNotarizedEvents,
+    listenToRevokedEvents,
+    removeEventListeners,
+    notarizeDocument,
+    checkAndSwitchNetwork,
+    hashDocument
+
+} from './blockchain';
+import CryptoJS from 'crypto-js';
+
 
 
 const Dashboard = () => {
@@ -20,7 +39,25 @@ const Dashboard = () => {
     return savedMode ? JSON.parse(savedMode) : false;
   });
 
+  const [account, setAccount] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const [blockchainStatus, setBlockchainStatus] = useState({
+    isProcessing: false,
+    currentTransaction: null,
+    error: null
+  });
   
+  const [documents, setDocuments] = useState([]);
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState(null);
+const [documentStatus, setDocumentStatus] = useState({
+    isNotarized: false,
+    notary: null,
+    notarizationTime: null,
+    expirationTime: null,
+    revoked: false
+});
 
   const [user, setUser] = React.useState(null); // State to store user info
   const navigate = useNavigate();
@@ -97,6 +134,149 @@ useEffect(() => {
 
 
 
+
+
+// Add these functions inside your Dashboard component
+const connectWallet = async () => {
+  setIsConnecting(true);
+  try {
+    // Check if MetaMask is installed
+    if (typeof window.ethereum === 'undefined') {
+      showPopupMessage('Please install MetaMask to use this feature', 'warning');
+      return;
+    }
+
+    // Request account access
+    const accounts = await window.ethereum.request({ 
+      method: 'eth_requestAccounts' 
+    });
+    
+    setAccount(accounts[0]);
+    showPopupMessage('Wallet connected successfully!', 'success');
+
+    // Add listeners for account changes
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', () => window.location.reload());
+
+  } catch (error) {
+    console.error('Error connecting wallet:', error);
+    showPopupMessage('Failed to connect wallet', 'error');
+  } finally {
+    setIsConnecting(false);
+  }
+};
+
+// Add this useEffect after your existing useEffect hooks
+useEffect(() => {
+  const checkWalletConnection = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        // Check if already connected
+        const accounts = await window.ethereum.request({ 
+          method: 'eth_accounts' 
+        });
+        
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+          showPopupMessage('Wallet connected', 'success');
+        } else {
+          // Automatically prompt connection
+          connectWallet();
+        }
+      } catch (error) {
+        console.error('Error checking wallet connection:', error);
+      }
+    }
+  };
+
+  checkWalletConnection();
+
+  // Cleanup function
+  return () => {
+    if (window.ethereum) {
+      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+    }
+  };
+}, []); // Empty dependency array means this runs once on mount
+
+const handleAccountsChanged = (accounts) => {
+  if (accounts.length === 0) {
+    // User disconnected their wallet
+    setAccount(null);
+    showPopupMessage('Wallet disconnected', 'info');
+  } else {
+    // Account changed
+    setAccount(accounts[0]);
+    showPopupMessage('Account changed', 'info');
+  }
+};
+
+
+const handleRevokeNotarization = async (fileId) => {
+  try {
+    // Call to your backend API to revoke the notarization
+    const response = await fetch(`/api/revoke-notarization/${fileId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to revoke notarization');
+    }
+
+    // Update the UI to reflect the change
+    setRecentActivities(prevActivities =>
+      prevActivities.map(file =>
+        file.id === fileId
+          ? { ...file, verificationStatus: 'Revoked' }
+          : file
+      )
+    );
+
+    // Show success message
+    toast.success('Notarization successfully revoked');
+  } catch (error) {
+    console.error('Error revoking notarization:', error);
+    toast.error('Failed to revoke notarization');
+  }
+};
+
+
+
+
+const handleNotarizeDocument = async (documentContent) => {
+  try {
+      // Default expiration duration (e.g., 30 days)
+      const expirationDuration = 30;
+      await notarizeDocument(documentContent, expirationDuration);
+      // Refresh the document list or update UI as needed
+      fetchDocuments();
+  } catch (error) {
+      console.error("Error notarizing document:", error);
+      // Handle error appropriately
+  }
+};
+const BlockchainStatusIndicator = () => {
+  if (!blockchainStatus.isProcessing && !blockchainStatus.error) return null;
+
+  return (
+      <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className={`fixed top-4 right-4 p-4 rounded-md shadow-lg ${
+              blockchainStatus.error 
+                  ? 'bg-red-500' 
+                  : 'bg-blue-500'
+          } text-white`}
+      >
+          {blockchainStatus.error || blockchainStatus.currentTransaction}
+      </motion.div>
+  );
+};
+
   const handleSignOut = async () => {
     const auth = getAuth();
     try {
@@ -128,27 +308,29 @@ useEffect(() => {
  
   
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       setSelectedFile(file);
       setShowUploadConfirmation(true);
     }
   };
-
-  const handleDrop = (event) => {
-    event.preventDefault();
+  const handleDrop = (e) => {
+    e.preventDefault();
     setDragging(false);
-    const droppedFiles = event.dataTransfer.files;
-    if (droppedFiles.length > 0) {
-      setSelectedFile(droppedFiles[0]);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
       setShowUploadConfirmation(true);
     }
-  };
-
-  const confirmUpload = () => {
+  }; 
+  
+  const confirmUpload = async () => {
     setShowUploadConfirmation(false);
-    handleFileUpload(selectedFile);
+    if (selectedFile) {
+      await handleFileUpload(selectedFile);
+    }
   };
 
   const cancelUpload = () => {
@@ -170,125 +352,347 @@ const showPopupMessage = (message, type = 'info', duration = 3000) => {
   setTimeout(() => setPopupMessage(null), duration);
 };
 
-  const handleFileUpload = async (selectedFile) => {
-    if (!selectedFile) {
-        showPopupMessage("No file selected", "error");
-        return;
-    }
-
-    setLoading(true);
-    setProgress(0);
-
-    try {
-        // 1. Upload to Firebase Storage
-        const storageRef = ref(storage, `uploads/${selectedFile.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, selectedFile);
-
-        // Create a promise for the storage upload
-        const uploadResult = await new Promise((resolve, reject) => {
-            uploadTask.on(
-                'state_changed',
-                (snapshot) => {
-                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                    setProgress(progress);
-                },
-                (error) => {
-                    console.error("Storage upload error:", error);
-                    reject(error);
-                },
-                async () => {
-                    try {
-                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        resolve(downloadURL);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
-
-        // 2. Prepare file for verification
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        // 3. Send to verification server
-        let verificationResult;
-        try {
-            const verificationResponse = await fetch('http://localhost:3001/api/verify', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!verificationResponse.ok) {
-                verificationResult = {
-                    status: 'In Progress',
-                    details: 'Document verification in progress'
-                };
-                showPopupMessage("Document verification in progress", "info");
-            } else {
-                verificationResult = await verificationResponse.json();
-                
-                // Show status-specific popup message
-                switch(verificationResult.status) {
-                    case 'Verified':
-                        showPopupMessage("Document verified successfully!", "success");
-                        break;
-                    case 'Rejected':
-                        showPopupMessage("Document verification failed", "error");
-                        break;
-                    case 'In Progress':
-                        showPopupMessage("Document verification in progress", "info");
-                        break;
-                    default:
-                        showPopupMessage("Unknown verification status", "warning");
-                }
-            }
-        } catch (verifyError) {
-            console.warn("Verification error:", verifyError);
-            verificationResult = {
-                status: 'In Progress',
-                details: 'Document verification in progress'
-            };
-            showPopupMessage("Document verification in progress", "info");
-        }
-
-        // 4. Save to Firestore
-        if (user) {
-            const fileMetadata = {
-                name: selectedFile.name,
-                size: selectedFile.size,
-                type: selectedFile.type,
-                downloadURL: uploadResult,
-                uploadTime: new Date(),
-                verificationStatus: verificationResult.status,
-                verificationDetails: verificationResult.details,
-            };
-
-            try {
-                const userDocRef = doc(db, "users", user.uid);
-                const userFilesCollection = collection(userDocRef, "uploadedFiles");
-                await addDoc(userFilesCollection, fileMetadata);
-                
-                setFile(selectedFile);
-                setProgress(100);
-
-            } catch (firestoreError) {
-                console.error("Firestore error:", firestoreError);
-                showPopupMessage("Error saving document metadata", "error");
-                throw new Error("Failed to save file metadata");
-            }
-        } else {
-            throw new Error("User not authenticated");
-        }
-
-    } catch (error) {
-        console.error("Error in upload process:", error);
-        showPopupMessage("Error processing document", "error");
-    } finally {
-        setLoading(false);
-    }
+// In your Dashboard component
+const createFileHash = async (file) => {
+  return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+          try {
+              const wordArray = CryptoJS.lib.WordArray.create(e.target.result);
+              const hash = CryptoJS.SHA256(wordArray).toString();
+              resolve(hash);
+          } catch (error) {
+              reject(error);
+          }
+      };
+      reader.onerror = error => reject(error);
+      reader.readAsArrayBuffer(file);
+  });
 };
-  const toggleDarkMode = () => {
+
+// Replace isDocumentFullyNotarized checks with:
+const checkDocumentStatus = async (content) => {
+  try {
+      const isNotarized = await isDocumentNotarized(content);
+      const details = await getDocumentDetails(content);
+      return {
+          isNotarized,
+          notary: details.notary,
+          notarizationTime: details.notarizationTime,
+          expirationTime: details.expirationTime,
+          revoked: details.revoked
+      };
+  } catch (error) {
+      console.error("Error checking document status:", error);
+      return null;
+  }
+};
+
+const fetchDocuments = async () => {
+  try {
+      // Get the current account
+      const currentAccount = await getCurrentAccount();
+      
+      // Search for documents associated with the current account
+      const documentHashesProxy = await searchDocumentsByNotary(currentAccount);
+      console.log("Documents found:", documentHashesProxy);
+      
+      // Convert Proxy result to array
+      const documentHashes = Array.from(documentHashesProxy).map(hash => 
+          typeof hash === 'string' ? hash : hash.toString()
+      );
+      
+      // Create an array to store the processed documents
+      const processedDocuments = [];
+
+      // Process each document hash
+      for (const hash of documentHashes) {
+          try {
+              // Remove '0x' prefix if present for consistency
+              const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash;
+              
+              // Get details for each document
+              const details = await getDocumentDetails(cleanHash);
+              
+              // Create a document object with all relevant information
+              const document = {
+                  hash: cleanHash,
+                  notary: details.notary,
+                  notarizationTime: new Date(details.notarizationTime * 1000).toLocaleString(),
+                  expirationTime: new Date(details.expirationTime * 1000).toLocaleString(),
+                  isExpired: await isDocumentExpired(cleanHash),
+                  isNotarized: await isDocumentNotarized(cleanHash),
+                  revoked: details.revoked,
+                  status: details.revoked 
+                      ? 'Revoked' 
+                      : (await isDocumentExpired(cleanHash)) 
+                          ? 'Expired' 
+                          : 'Active'
+              };
+
+              processedDocuments.push(document);
+          } catch (error) {
+              console.error(`Error processing document ${hash}:`, error);
+              // Continue with next document even if one fails
+              continue;
+          }
+      }
+
+      // Sort documents by notarization time (most recent first)
+      const sortedDocuments = processedDocuments.sort((a, b) => {
+          const dateA = new Date(a.notarizationTime);
+          const dateB = new Date(b.notarizationTime);
+          return dateB - dateA;
+      });
+
+      return sortedDocuments;
+  } catch (error) {
+      console.error("Error fetching documents:", error);
+      throw error;
+  }
+};
+// You might want to call this function in useEffect
+useEffect(() => {
+  const loadDocuments = async () => {
+      setIsLoading(true);
+      setError(null);
+      await fetchDocuments();
+  };
+
+  loadDocuments();
+  
+  // Set up event listeners for blockchain events
+  const setupEventListeners = async () => {
+      try {
+          await listenToNotarizedEvents((hash, notary, time) => {
+              // Refresh documents when a new document is notarized
+              fetchDocuments();
+          });
+
+          await listenToRevokedEvents((hash, notary, time) => {
+              // Refresh documents when a document is revoked
+              fetchDocuments();
+          });
+      } catch (error) {
+          console.error("Error setting up event listeners:", error);
+      }
+  };
+
+  setupEventListeners();
+
+  // Cleanup function
+  return () => {
+      removeEventListeners();
+  };
+}, []);
+
+
+const handleFileUpload = async (selectedFile) => {
+  if (!selectedFile || !(selectedFile instanceof Blob)) {
+      showPopupMessage("No valid file selected", "error");
+      return;
+  }
+
+  setLoading(true);
+  setProgress(0);
+
+  try {
+      // Check MetaMask and network
+      if (typeof window.ethereum === 'undefined') {
+          throw new Error("Please install MetaMask to use this feature");
+      }
+
+      await checkAndSwitchNetwork();
+      const currentAddress = await getCurrentAccount();
+      if (!currentAddress) {
+          throw new Error("Please connect your wallet first");
+      }
+
+      // 1. Upload to Firebase Storage
+      const storageRef = ref(storage, `uploads/${selectedFile.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, selectedFile);
+
+      // Create a promise for the storage upload
+      const uploadResult = await new Promise((resolve, reject) => {
+          uploadTask.on(
+              'state_changed',
+              (snapshot) => {
+                  const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                  setProgress(progress);
+              },
+              (error) => {
+                  console.error("Storage upload error:", error);
+                  reject(error);
+              },
+              async () => {
+                  try {
+                      const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                      resolve(downloadURL);
+                  } catch (error) {
+                      reject(error);
+                  }
+              }
+          );
+      });
+
+      // 2. Create document hash for blockchain
+      let documentHash;
+      try {
+          documentHash = await hashDocument(selectedFile); // Use selectedFile here
+          console.log("Document hash:", documentHash);
+      } catch (hashError) {
+          console.error("Error creating document hash:", hashError);
+          throw new Error("Failed to create document hash");
+      }
+
+      // 3. Check if document is already notarized
+      const isAlreadyNotarized = await isDocumentNotarized(documentHash);
+      if (isAlreadyNotarized) {
+          throw new Error("Document is already notarized");
+      }
+
+      // 4. Prepare file for verification
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // 5. Send to verification server
+      let verificationResult;
+      try {
+          const verificationResponse = await fetch('http://localhost:3001/api/verify', {
+              method: 'POST',
+              body: formData
+          });
+
+          if (!verificationResponse.ok) {
+              verificationResult = {
+                  status: 'In Progress',
+                  details: 'Document verification in progress'
+              };
+              showPopupMessage("Document verification in progress", "info");
+          } else {
+              verificationResult = await verificationResponse.json();
+              
+              switch(verificationResult.status) {
+                  case 'Verified':
+                      showPopupMessage("Document verified successfully!", "success");
+                      break;
+                  case 'Rejected':
+                      showPopupMessage("Document verification failed", "error");
+                      return;
+                  case 'In Progress':
+                      showPopupMessage("Document verification in progress", "info");
+                      break;
+                  default:
+                      showPopupMessage("Unknown verification status", "warning");
+              }
+          }
+      } catch (verifyError) {
+          console.warn("Verification error:", verifyError);
+          verificationResult = {
+              status: 'In Progress',
+              details: 'Document verification in progress'
+          };
+          showPopupMessage("Document verification in progress", "info");
+      }
+
+      // 6. Notarize document if verification is successful
+      let blockchainReceipt = null;
+      if (verificationResult.status === 'Verified') {
+          try {
+              setBlockchainStatus({
+                  isProcessing: true,
+                  currentTransaction: 'Notarizing document on blockchain'
+              });
+
+              // Default expiration duration (30 days)
+              const expirationDuration = 30;
+              blockchainReceipt = await notarizeDocument(documentHash, expirationDuration);
+              console.log("Blockchain transaction receipt:", blockchainReceipt );
+
+              showPopupMessage("Document successfully notarized on blockchain!", "success");
+          } catch (blockchainError) {
+              console.error("Blockchain notarization error:", blockchainError);
+              showPopupMessage("Failed to notarize on blockchain", "error");
+              throw blockchainError;
+          } finally {
+              setBlockchainStatus({
+                  isProcessing: false,
+                  currentTransaction: null
+              });
+          }
+      }
+
+      // 7. Save to Firestore
+      if (user) {
+          const fileMetadata = {
+              name: selectedFile.name,
+              size: selectedFile.size,
+              type: selectedFile.type,
+              downloadURL: uploadResult,
+              uploadTime: new Date(),
+              verificationStatus: verificationResult.status,
+              verificationDetails: verificationResult.details,
+              documentHash: documentHash,
+              notarizationStatus: blockchainReceipt ? 'Notarized' : 'Pending',
+              blockchainTxHash: blockchainReceipt?.hash || null,
+              notaryAddress: currentAddress,
+              lastModified: new Date(),
+              expirationDate: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)), // 30 days from now
+              isRevoked: false
+          };
+
+          try {
+              const userDocRef = doc(db, "users", user.uid);
+              const userFilesCollection = collection(userDocRef, "uploadedFiles");
+              const docRef = await addDoc(userFilesCollection, fileMetadata);
+              
+              // Add verification record
+              const verificationRecord = {
+                  documentId: docRef.id,
+                  timestamp: new Date(),
+                  type: 'DOCUMENT_VERIFICATION',
+                  result: verificationResult.status,
+                  details: verificationResult.details,
+                  blockchainTxHash: blockchainReceipt?.hash || null
+              };
+
+              await addDoc(
+                  collection(docRef, 'verifications'),
+                  verificationRecord
+              );
+
+              setFile(selectedFile);
+              setProgress(100);
+
+          } catch (firestoreError) {
+              console.error("Firestore error:", firestoreError);
+              showPopupMessage("Error saving document metadata", "error");
+              throw new Error("Failed to save file metadata");
+          }
+      } else {
+          throw new Error("User not authenticated");
+      }
+
+  } catch (error) {
+      console.error("Error in upload process:", error);
+      showPopupMessage("Error processing document: " + error.message, "error");
+      
+      // Cleanup if needed
+      try {
+          const storageRef = ref(storage, `uploads/${selectedFile.name}`);
+          await deleteObject(storageRef);
+          console.log("Cleaned up storage after error");
+      } catch (cleanupError) {
+          console.error("Cleanup error:", cleanupError);
+      }
+  } finally {
+      setLoading(false);
+  }
+};
+
+
+
+const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem('darkMode', newMode);
@@ -311,8 +715,28 @@ const showPopupMessage = (message, type = 'info', duration = 3000) => {
     }
   };
 
+// Add this function to your component
+const checkMetaMaskInstallation = () => {
+  if (typeof window.ethereum === 'undefined') {
+    showPopupMessage(
+      'MetaMask is not installed. Please install MetaMask to use all features.',
+      'warning',
+      7000
+    );
+    return false;
+  }
+  return true;
+};
+
+// Call this in your useEffect
+useEffect(() => {
+  checkMetaMaskInstallation();
+}, []);
+
+
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} transition-colors duration-500`}>
+       <BlockchainStatusIndicator />
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute inset-0 bg-gradient-to-br ${darkMode ? 'from-blue-900 to-purple-900' : 'from-blue-500 to-purple-700'} opacity-20 animate-gradient-x`} />
@@ -396,7 +820,32 @@ const showPopupMessage = (message, type = 'info', duration = 3000) => {
           >
             <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
               <h1 className="text-3xl font-bold">Dashboard</h1>
-              <div className="flex items-center space-x-4"> {/* Space between buttons */}
+              <div className="flex items-center space-x-4">
+  
+  
+              {/* Wallet Status */}
+              <div className={`px-4 py-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                {isConnecting ? (
+      <span>Connecting...</span>
+    ) : account ? (
+      <span className="text-sm">
+        {`${account.substring(0, 6)}...${account.substring(account.length - 4)}`}
+      </span>
+    ) : (
+      <button
+        onClick={connectWallet}
+        className="text-sm font-medium hover:opacity-80"
+      >
+        Connect Wallet
+      </button>
+    )}
+  </div>
+              
+              
+
+
+
+
                 {/* Home Button */}
                 <button 
                   onClick={handleGoToHomepage}
@@ -524,36 +973,54 @@ const showPopupMessage = (message, type = 'info', duration = 3000) => {
         <p className="text-gray-500">No recent uploads available.</p>
     ) : (
         <ul className="space-y-2">
-            {recentActivities.map((file, index) => (
-                <motion.li 
-                    key={file.id} 
-                    className={`p-4 rounded-lg shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
-                    initial="initial"
-                    whileHover="hover"
-                    whileTap="tap"
-                    variants={hoverVariants}
-                >
-                    <div className="flex justify-between">
-                        <div className="flex flex-col">
-                            <span className="font-medium">{file.name}</span>
-                            <span className="text-sm text-gray-500">
-                                {new Date(file.time).toLocaleString()}
-                            </span>
-                        </div>
-                        <div className="flex items-center">
-                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                file.verificationStatus === 'Verified' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : file.verificationStatus === 'Rejected'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                                {file.verificationStatus}
-                            </span>
-                        </div>
-                    </div>
-                </motion.li>
-            ))}
+           {recentActivities.map((file, index) => (
+  <motion.li
+    key={file.id}
+    className={`p-4 rounded-lg shadow ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+    initial="initial"
+    whileHover="hover"
+    whileTap="tap"
+    variants={hoverVariants}
+  >
+    <div className="flex justify-between">
+      <div className="flex flex-col">
+        <span className="font-medium">{file.name}</span>
+        <span className="text-sm text-gray-500">
+          {new Date(file.time).toLocaleString()}
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+          file.verificationStatus === 'Verified'
+            ? 'bg-green-100 text-green-800'
+            : file.verificationStatus === 'Rejected'
+            ? 'bg-red-100 text-red-800'
+            : file.verificationStatus === 'Revoked'
+            ? 'bg-gray-100 text-gray-800'
+            : 'bg-yellow-100 text-yellow-800'
+        }`}>
+          {file.verificationStatus}
+        </span>
+        {file.blockchainHash && file.verificationStatus !== 'Revoked' && (
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleNotarizeDocument(file.content)}
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Notarize
+            </button>
+            <button
+              onClick={() => handleRevokeNotarization(file.id)}
+              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            >
+              Revoke
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  </motion.li>
+))}
         </ul>
     )}
 </motion.div>
