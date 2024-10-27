@@ -75,6 +75,10 @@ const [documentStatus, setDocumentStatus] = useState({
 ]);
 
 const [recentActivities, setRecentActivities] = React.useState([]); // Initialize as empty
+const [showRevokeConfirmation, setShowRevokeConfirmation] = useState(false);
+const [documentToRevoke, setDocumentToRevoke] = useState(null);
+
+
 
 useEffect(() => {
   const auth = getAuth();
@@ -211,11 +215,22 @@ const handleAccountsChanged = (accounts) => {
   }
 };
 
+const initiateRevoke = (documentId) => {
+  setDocumentToRevoke(documentId);
+  setShowRevokeConfirmation(true);
+};
 
-const handleRevokeNotarization = async (fileId) => {
+const cancelRevoke = () => {
+  setShowRevokeConfirmation(false);
+  setDocumentToRevoke(null);
+};
+
+const handleRevokeNotarization = async (documentId) => {
   try {
-    // Call to your backend API to revoke the notarization
-    const response = await fetch(`/api/revoke-notarization/${fileId}`, {
+    setLoading(true);
+    
+    // Make API call to your backend
+    const response = await fetch(`/api/documents/${documentId}/revoke`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -223,23 +238,27 @@ const handleRevokeNotarization = async (fileId) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to revoke notarization');
+      throw new Error('Failed to revoke document');
     }
 
-    // Update the UI to reflect the change
+    // Update the UI
     setRecentActivities(prevActivities =>
-      prevActivities.map(file =>
-        file.id === fileId
-          ? { ...file, verificationStatus: 'Revoked' }
-          : file
+      prevActivities.map(activity =>
+        activity.id === documentId
+          ? { ...activity, verificationStatus: 'Revoked' }
+          : activity
       )
     );
 
-    // Show success message
-    toast.success('Notarization successfully revoked');
+    toast.success('Document notarization has been successfully revoked');
+    setShowRevokeConfirmation(false);
+    setDocumentToRevoke(null);
+
   } catch (error) {
-    console.error('Error revoking notarization:', error);
-    toast.error('Failed to revoke notarization');
+    console.error('Error revoking document:', error);
+    toast.error('Failed to revoke document notarization');
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -1010,11 +1029,11 @@ useEffect(() => {
               Notarize
             </button>
             <button
-              onClick={() => handleRevokeNotarization(file.id)}
-              className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-            >
-              Revoke
-            </button>
+      onClick={() => initiateRevoke(file.id)}
+      className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+    >
+      Revoke
+    </button>
           </div>
         )}
       </div>
@@ -1091,6 +1110,67 @@ useEffect(() => {
           </div>
         </Dialog>
       </Transition>
+      {/* Revoke Confirmation Dialog */}
+<Transition appear show={showRevokeConfirmation} as={Fragment}>
+  <Dialog as="div" className="relative z-10" onClose={cancelRevoke}>
+    <Transition.Child
+      as={Fragment}
+      enter="ease-out duration-300"
+      enterFrom="opacity-0"
+      enterTo="opacity-100"
+      leave="ease-in duration-200"
+      leaveFrom="opacity-100"
+      leaveTo="opacity-0"
+    >
+      <div className="fixed inset-0 bg-black bg-opacity-25" />
+    </Transition.Child>
+
+    <div className="fixed inset-0 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4 text-center">
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0 scale-95"
+          enterTo="opacity-100 scale-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100 scale-100"
+          leaveTo="opacity-0 scale-95"
+        >
+          <Dialog.Panel className={`w-full max-w-md transform overflow-hidden rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 text-left align-middle shadow-xl transition-all`}>
+            <Dialog.Title
+              as="h3"
+              className={`text-lg font-medium leading-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}
+            >
+              Revoke Document Notarization
+            </Dialog.Title>
+            <div className="mt-2">
+              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                Are you sure you want to revoke this document's notarization? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-end space-x-3">
+              <button
+                type="button"
+                className={`inline-flex justify-center rounded-md border border-transparent ${darkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-100 hover:bg-red-200'} px-4 py-2 text-sm font-medium ${darkMode ? 'text-white' : 'text-red-900'} focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2`}
+                onClick={() => handleRevokeNotarization(documentToRevoke)}
+              >
+                Revoke
+              </button>
+              <button
+                type="button"
+                className={`inline-flex justify-center rounded-md border border-transparent ${darkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'} px-4 py-2 text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'} focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2`}
+                onClick={cancelRevoke}
+              >
+                Cancel
+              </button>
+            </div>
+          </Dialog.Panel>
+        </Transition.Child>
+      </div>
+    </div>
+  </Dialog>
+</Transition>
     </div>
   );
 };

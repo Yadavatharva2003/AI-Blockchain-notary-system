@@ -1,12 +1,14 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect,Fragment} from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, Download, Trash, Moon, Sun, Info } from 'lucide-react';
+import { ArrowLeft, Eye, Download, Trash, Moon, Sun, Info, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAuth } from 'firebase/auth';
-import { doc, collection, query, onSnapshot } from 'firebase/firestore';
+import { doc, collection, query, onSnapshot,updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { Dialog, Transition } from '@headlessui/react';
+import { toast } from 'react-toastify';
 
 export default function DashboardHistory() {
   const navigate = useNavigate();
@@ -19,7 +21,8 @@ export default function DashboardHistory() {
     return savedMode ? JSON.parse(savedMode) : false;
   });
   const [expandedIndex, setExpandedIndex] = useState(null);
-
+  const [showRevokeConfirmation, setShowRevokeConfirmation] = useState(false);
+const [documentToRevoke, setDocumentToRevoke] = useState(null);
   useEffect(() => {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -85,6 +88,57 @@ export default function DashboardHistory() {
       </div>
     );
   }
+
+  const initiateRevoke = (documentId) => {
+    setDocumentToRevoke(documentId);
+    setShowRevokeConfirmation(true);
+  };
+  
+  const handleRevokeNotarization = async (documentId) => {
+    try {
+      setLoading(true);
+      const auth = getAuth();
+      const user = auth.currentUser;
+  
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+  
+      // Update the document status in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const documentRef = doc(userDocRef, "uploadedFiles", documentId);
+  
+      await updateDoc(documentRef, {
+        verificationStatus: 'Revoked',
+        revokedAt: new Date(),
+        revokedBy: user.email,
+      });
+  
+      // Update the documents state
+      setDocuments(prevDocs =>
+        prevDocs.map(doc =>
+          doc.id === documentId
+            ? { ...doc, status: 'Revoked' }
+            : doc
+        )
+      );
+  
+      toast.success('Document notarization has been successfully revoked');
+      setShowRevokeConfirmation(false);
+      setDocumentToRevoke(null);
+  
+    } catch (error) {
+      console.error('Error revoking document:', error);
+      toast.error('Failed to revoke document notarization');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const cancelRevoke = () => {
+    setShowRevokeConfirmation(false);
+    setDocumentToRevoke(null);
+  };
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-900'} transition-colors duration-500`}>
@@ -195,6 +249,15 @@ export default function DashboardHistory() {
                       <button title="Download" className={`text-green-600 hover:text-green-800 ${darkMode ? 'text-green-300' : 'text-green-600'} transition-transform duration-300`}>
                         <Download size={20} />
                       </button>
+                      {doc.status === 'Verified' && (
+                        <button 
+                          title="Revoke" 
+                          onClick={() => initiateRevoke(doc.id)}
+                          className={`text-red-600 hover:text-red-800 ${darkMode ? 'text-red-300' : 'text-red-600'} transition-transform duration-300`}
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
                       <button title="Delete" className={`text-red-600 hover:text-red-800 ${darkMode ? 'text-red-300' : 'text-red-600'} transition-transform duration-300`}>
                         <Trash size={20} />
                       </button>
@@ -281,6 +344,9 @@ export default function DashboardHistory() {
                           )}
                         </div>
                       )}
+
+
+
                     </div>
                   )}
                </motion.div>
@@ -289,6 +355,80 @@ export default function DashboardHistory() {
           </motion.main>
         </div>
       </div>
+      {/* Revoke Confirmation Dialog */}
+<Transition appear show={showRevokeConfirmation} as={Fragment}>
+  <Dialog 
+    as="div" 
+    className="relative z-50" 
+    onClose={cancelRevoke}
+  >
+    <Transition.Child
+      as={Fragment}
+      enter="ease-out duration-300"
+      enterFrom="opacity-0"
+      enterTo="opacity-100"
+      leave="ease-in duration-200"
+      leaveFrom="opacity-100"
+      leaveTo="opacity-0"
+    >
+      <div className="fixed inset-0 bg-black bg-opacity-25" />
+    </Transition.Child>
+
+    <div className="fixed inset-0 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4 text-center">
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0 scale-95"
+          enterTo="opacity-100 scale-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100 scale-100"
+          leaveTo="opacity-0 scale-95"
+        >
+          <Dialog.Panel className={`w-full max-w-md transform overflow-hidden rounded-2xl ${darkMode ? 'bg-gray-800' : 'bg-white'} p-6 text-left align-middle shadow-xl transition-all`}>
+            <Dialog.Title
+              as="h3"
+              className={`text-lg font-medium leading-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}
+            >
+              Revoke Document Notarization
+            </Dialog.Title>
+            <div className="mt-2">
+              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                Are you sure you want to revoke this document's notarization? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="mt-4 flex justify-end space-x-3">
+              <button
+                type="button"
+                className={`inline-flex justify-center rounded-md border border-transparent ${
+                  darkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-100 hover:bg-red-200'
+                } px-4 py-2 text-sm font-medium ${
+                  darkMode ? 'text-white' : 'text-red-900'
+                } focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2`}
+                onClick={() => handleRevokeNotarization(documentToRevoke)}
+              >
+                Revoke
+              </button>
+              <button
+                type="button"
+                className={`inline-flex justify-center rounded-md border border-transparent ${
+                  darkMode ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'
+                } px-4 py-2 text-sm font-medium ${
+                  darkMode ? 'text-white' : 'text-gray-900'
+                } focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2`}
+                onClick={cancelRevoke}
+              >
+                Cancel
+              </button>
+            </div>
+          </Dialog.Panel>
+        </Transition.Child>
+      </div>
     </div>
+  </Dialog>
+</Transition>
+    </div>
+    
   );
 }
