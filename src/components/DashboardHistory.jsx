@@ -207,13 +207,83 @@ export default function DashboardHistory() {
                       </button>
                     </div>
                   </div>
+                  
                   {expandedIndex === index && (
                     <div className="mt-4">
-                      <h3 className="font-bold">Verification Details:</h3>
-                      <p className="whitespace-pre-line">{doc.details}</p>
+                      <h3 className="font-bold mb-2">Verification Details:</h3>
+                      {doc.details && (
+                        <div className="space-y-2">
+                          {/* Show notary status for both verified and rejected documents */}
+                          {doc.details.notaryStatus && (
+                            <div className={doc.details.notaryStatus.isValid ? "text-green-500" : "text-red-500"}>
+                              <p className="font-semibold">Notary Status:</p>
+                              <ul className="list-disc ml-4">
+                                {Object.entries(doc.details.notaryStatus.checks).map(([key, value]) => (
+                                  <li key={key}>
+                                    {key.replace(/([A-Z])/g, ' $1').trim()}: {value ? '✓' : '✗'}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {/* Show AI Analysis for both verified and rejected documents */}
+                          {doc.details.aiAnalysis && (
+                            <div className="text-gray-600 dark:text-gray-300">
+                              <p className="font-semibold">AI Analysis:</p>
+                              <p className="whitespace-pre-line">{doc.details.aiAnalysis}</p>
+                            </div>
+                          )}
+
+                          {/* Show errors only if they exist */}
+                          {doc.details.criticalErrors && doc.details.criticalErrors.length > 0 && (
+                            <div className="text-red-500">
+                              <p className="font-semibold">Critical Errors:</p>
+                              <ul className="list-disc ml-4">
+                                {doc.details.criticalErrors.map((error, i) => (
+                                  <li key={i}>{error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {doc.details.spellingErrors && doc.details.spellingErrors.length > 0 && (
+                            <div className="text-yellow-500">
+                              <p className="font-semibold">Spelling Issues:</p>
+                              <ul className="list-disc ml-4">
+                                {doc.details.spellingErrors.map((error, i) => (
+                                  <li key={i}>{error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {doc.details.formatErrors && doc.details.formatErrors.length > 0 && (
+                            <div className="text-orange-500">
+                              <p className="font-semibold">Format Issues:</p>
+                              <ul className="list-disc ml-4">
+                                {doc.details.formatErrors.map((error, i) => (
+                                  <li key={i}>{error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Add verification success message for verified documents */}
+                          {doc.status === 'Verified' && !doc.details.criticalErrors && (
+                            <div className="text-green-500">
+                              <p className="font-semibold">Verification Status:</p>
+                              <p className="ml-4">✓ Document successfully verified</p>
+                              {doc.details.verificationTime && (
+                                <p className="ml-4">Verified at: {new Date(doc.details.verificationTime).toLocaleString()}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
-                </motion.div>
+               </motion.div>
               ))}
             </div>
           </motion.main>
