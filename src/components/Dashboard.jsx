@@ -578,7 +578,7 @@ const handleFileUpload = async (selectedFile) => {
                       break;
                   case 'Rejected':
                       showPopupMessage("Document verification failed", "error");
-                      return;
+                      break;
                   case 'In Progress':
                       showPopupMessage("Document verification in progress", "info");
                       break;
