@@ -1,8 +1,8 @@
 // firebase.js
-import { initializeApp } from 'firebase/app';
-import { getStorage } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getStorage } from "firebase/storage";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -12,7 +12,7 @@ const firebaseConfig = {
   storageBucket: "notary-e69a1.appspot.com",
   messagingSenderId: "687081105819",
   appId: "1:687081105819:web:859ad75faee7c46110593e",
-  measurementId: "G-5QNN8EVG9L"
+  measurementId: "G-5QNN8EVG9L",
 };
 
 // Initialize Firebase

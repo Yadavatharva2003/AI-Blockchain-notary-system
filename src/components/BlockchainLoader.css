@@ -1,114 +1,115 @@
 .robot-loader {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.robot {
+  width: 60px;
+  height: 120px;
+  position: relative;
+  animation: bounce 1s infinite;
+}
+
+.robot-head {
+  width: 60px;
+  height: 40px;
+  background-color: #4a5568; /* Dark gray for head */
+  border-radius: 10px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.eyes {
+  display: flex;
+  justify-content: space-between;
+  width: 50%;
+  position: absolute;
+  top: 10px;
+}
+
+.eye {
+  width: 10px;
+  height: 10px;
+  background-color: white;
+  border-radius: 50%;
+  animation: blink 2s infinite;
+}
+
+.robot-body {
+  width: 60px;
+  height: 80px;
+  background-color: #a0aec0; /* Light gray for body */
+  border-radius: 10px;
+  position: relative;
+}
+
+.arm {
+  width: 10px;
+  height: 40px;
+  background-color: #4a5568; /* Dark gray for arms */
+  position: absolute;
+}
+
+.left {
+  left: -10px; /* Positioning the left arm */
+  top: 40px;
+  animation: leftArmAnimation 1s infinite alternate;
+}
+
+.right {
+  right: -10px; /* Positioning the right arm */
+  top: 40px;
+  animation: rightArmAnimation 1s infinite alternate;
+}
+
+.processing-text {
+  color: #2d3748; /* Dark text color */
+  font-size: 14px;
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Keyframes for animations */
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
   }
-  
-  .robot {
-    width: 60px;
-    height: 120px;
-    position: relative;
-    animation: bounce 1s infinite;
+  50% {
+    transform: translateY(-10px);
   }
-  
-  .robot-head {
-    width: 60px;
-    height: 40px;
-    background-color: #4A5568; /* Dark gray for head */
-    border-radius: 10px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 5px;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
   }
-  
-  .eyes {
-    display: flex;
-    justify-content: space-between;
-    width: 50%;
-    position: absolute;
-    top: 10px;
+  50% {
+    opacity: 0;
   }
-  
-  .eye {
-    width: 10px;
-    height: 10px;
-    background-color: white;
-    border-radius: 50%;
-    animation: blink 2s infinite;
+}
+
+@keyframes leftArmAnimation {
+  0% {
+    transform: rotate(0deg);
   }
-  
-  .robot-body {
-    width: 60px;
-    height: 80px;
-    background-color: #A0AEC0; /* Light gray for body */
-    border-radius: 10px;
-    position: relative;
+  100% {
+    transform: rotate(-15deg);
   }
-  
-  .arm {
-    width: 10px;
-    height: 40px;
-    background-color: #4A5568; /* Dark gray for arms */
-    position: absolute;
+}
+
+@keyframes rightArmAnimation {
+  0% {
+    transform: rotate(0deg);
   }
-  
-  .left {
-    left: -10px; /* Positioning the left arm */
-    top: 40px;
-    animation: leftArmAnimation 1s infinite alternate;
+  100% {
+    transform: rotate(15deg);
   }
-  
-  .right {
-    right: -10px; /* Positioning the right arm */
-    top: 40px;
-    animation: rightArmAnimation 1s infinite alternate;
-  }
-  
-  .processing-text {
-    color: #2D3748; /* Dark text color */
-    font-size: 14px;
-    text-align: center;
-    margin-top: 10px;
-  }
-  
-  /* Keyframes for animations */
-  @keyframes bounce {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-  
-  @keyframes blink {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0;
-    }
-  }
-  
-  @keyframes leftArmAnimation {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(-15deg);
-    }
-  }
-  
-  @keyframes rightArmAnimation {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(15deg);
-    }
-  }
-  
+}

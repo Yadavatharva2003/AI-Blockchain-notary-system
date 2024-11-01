@@ -1,5 +1,5 @@
-import React from 'react';
-import './BlockchainLoader.css'; // Make sure to create this CSS file
+import React from "react";
+import "./BlockchainLoader.css"; // Make sure to create this CSS file
 
 const BlockchainLoader = () => {
   return (
