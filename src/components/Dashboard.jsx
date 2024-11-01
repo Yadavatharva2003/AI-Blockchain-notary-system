@@ -8,7 +8,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { storage, db } from './firebase';
 import { doc, collection, addDoc, onSnapshot ,query,orderBy,limit} from 'firebase/firestore';
 import { Dialog, Transition } from '@headlessui/react';
-import { ToastContainer, toast } from 'react-toastify';
+import {toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { Fragment } from 'react';
@@ -23,7 +23,7 @@ import {
     removeEventListeners,
     notarizeDocument,
     checkAndSwitchNetwork,
-    hashDocument
+    hashDocument,
 
 } from './blockchain';
 import CryptoJS from 'crypto-js';
@@ -142,6 +142,7 @@ useEffect(() => {
 
 // Add these functions inside your Dashboard component
 const connectWallet = async () => {
+  if (isConnecting) return;
   setIsConnecting(true);
   try {
     // Check if MetaMask is installed
@@ -170,6 +171,17 @@ const connectWallet = async () => {
   }
 };
 
+const handleAccountsChanged = (accounts) => {
+  if (accounts.length === 0) {
+    // User disconnected their wallet
+    setAccount(null);
+    showPopupMessage('Wallet disconnected', 'info');
+  } else {
+    // Account changed
+    setAccount(accounts[0]);
+    showPopupMessage('Account changed', 'info');
+  }
+};
 // Add this useEffect after your existing useEffect hooks
 useEffect(() => {
   const checkWalletConnection = async () => {
@@ -203,18 +215,15 @@ useEffect(() => {
   };
 }, []); // Empty dependency array means this runs once on mount
 
-const handleAccountsChanged = (accounts) => {
-  if (accounts.length === 0) {
-    // User disconnected their wallet
-    setAccount(null);
-    showPopupMessage('Wallet disconnected', 'info');
+
+const handleBlockchainError = (error) => {
+  console.error('Blockchain error:', error);
+  if (error.message.includes('Connection already in progress')) {
+    showPopupMessage('A connection is already in progress. Please wait.', 'warning');
   } else {
-    // Account changed
-    setAccount(accounts[0]);
-    showPopupMessage('Account changed', 'info');
+    showPopupMessage('An error occurred with the blockchain connection', 'error');
   }
 };
-
 const initiateRevoke = (documentId) => {
   setDocumentToRevoke(documentId);
   setShowRevokeConfirmation(true);
@@ -604,6 +613,7 @@ const handleFileUpload = async (selectedFile) => {
                   default:
                       showPopupMessage("Unknown verification status", "warning");
               }
+              console.log("Verification status:", verificationResult.status);
           }
       } catch (verifyError) {
           console.warn("Verification error:", verifyError);

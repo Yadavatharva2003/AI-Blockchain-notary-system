@@ -51,13 +51,14 @@ const [documentToRevoke, setDocumentToRevoke] = useState(null);
   }, []);
 
   // Filter and sort documents
-  const filteredDocuments = documents
+ const filteredDocuments = documents
     .filter(doc => doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === 'fileName') {
         return a.fileName.localeCompare(b.fileName);
       }
-      return new Date(b.uploadTime) - new Date(a.uploadTime);
+      // Ensure sorting by uploadTime in descending order
+      return b.uploadTime.seconds - a.uploadTime.seconds; // Most recent first
     });
 
   const handleToggleDarkMode = () => {

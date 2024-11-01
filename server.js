@@ -32,7 +32,7 @@ const generationConfig = {
   maxOutputTokens: 8192,
 };
 
-// Enhanced error detection patterns
+// Enhanced error detection patterns with more flexibility
 const errorPatterns = {
   spellingErrors: {
     common: /(?:\b\w{2,}\b)(?=.*\1)/gi,  // Repeated words
@@ -40,13 +40,13 @@ const errorPatterns = {
   },
   formatErrors: {
     dates: /\b\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{3}|\d{5})\b/g,  // Invalid date formats
-    inconsistentSpacing: /\s{2,}|\t/g,  // Inconsistent spacing
+    inconsistentSpacing: /\s{3,}|\t{2,}/g,  // More tolerant spacing check
   },
   criticalErrors: {
-    missingNotary: /notary.*(?:missing|absent|illegible)/i,
-    missingSignature: /signature.*(?:missing|absent|illegible)/i,
-    missingSeals: /seal.*(?:missing|absent|illegible)/i,
-    dataErrors: /(?:error|discrepanc|incorrect).*(?:data|information|detail)/i,
+    missingNotary: /notary.*(?:completely missing|entirely absent)/i,
+    missingSignature: /signature.*(?:completely missing|entirely absent)/i,
+    missingSeals: /seal.*(?:completely missing|entirely absent)/i,
+    dataErrors: /critical.*(?:error|discrepancy).*(?:data|information)/i,
   }
 };
 
@@ -60,24 +60,26 @@ async function readWordDocument(filePath) {
 }
 
 function detectSpellingErrors(text) {
-  // Dictionary of common legal terms to exclude from spell check
+  // Expande legal terms dictionary
   const legalTerms = new Set([
     'hereby', 'whereas', 'aforementioned', 'therein', 'pursuant',
-    'hereinafter', 'notary', 'jurisdiction', 'affidavit'
+    'hereinafter', 'notary', 'jurisdiction', 'affidavit',
+    'testator', 'executor', 'grantor', 'grantee', 'covenant',
+    'deed', 'mortgage', 'lien', 'easement', 'tenant'
+    // Add more legal terms as needed
   ]);
 
-  // Split text into words
   const words = text.split(/\s+/);
   const potentialErrors = [];
 
   for (const word of words) {
     const cleanWord = word.replace(/[^a-zA-Z]/g, '');
-    if (cleanWord.length < 3) continue;
+    if (cleanWord.length < 5) continue;
     if (legalTerms.has(cleanWord.toLowerCase())) continue;
 
-    // Check for obvious misspellings (missing vowels, repeated consonants, etc.)
-    if (/[aeiou]{3,}|[bcdfghjklmnpqrstvwxyz]{4,}/.test(cleanWord) ||
-        /([a-zA-Z])\1{2,}/.test(cleanWord)) {
+    // Make pattern matching less strict
+    if (/[aeiou]{4,}|[bcdfghjklmnpqrstvwxyz]{5,}/.test(cleanWord) ||
+        /([a-zA-Z])\1{3,}/.test(cleanWord)) {
       potentialErrors.push(word);
     }
   }
@@ -85,51 +87,74 @@ function detectSpellingErrors(text) {
   return potentialErrors;
 }
 
+function detectFormatErrors(text) {
+  const errors = [];
+
+  // Check for invalid date formats
+  const dates = text.match(errorPatterns.formatErrors.dates);
+  if (dates) {
+    errors.push(...dates);
+  }
+
+  // Check for inconsistent spacing
+  const spacingErrors = text.match(errorPatterns.formatErrors.inconsistentSpacing);
+  if (spacingErrors) {
+    errors.push(...spacingErrors);
+  }
+
+  return errors;
+}
+
+function detectCriticalErrors(text) {
+  const errors = [];
+
+  // Check for missing notary
+  if (errorPatterns.criticalErrors.missingNotary.test(text)) {
+    errors.push("Missing notary");
+  }
+
+  // Check for missing signature
+  if (errorPatterns.criticalErrors.missingSignature.test(text)) {
+    errors.push("Missing signature");
+  }
+
+  // Check for missing seals
+  if (errorPatterns.criticalErrors.missingSeals.test(text)) {
+    errors.push("Missing seals");
+  }
+
+  // Check for data errors
+  if (errorPatterns.criticalErrors.dataErrors.test(text)) {
+    errors.push("Data errors");
+  }
+
+  return errors;
+}
+
 function validateNotaryElements(text) {
   const notaryChecks = {
-    hasNotarySignature: /notary\s+(?:public\s+)?signature:?\s*\w+/i.test(text) &&
-                       !/(missing|absent|illegible)\s+(?:notary\s+)?signature/i.test(text),
-    hasNotarySeal: /notary\s+(?:public\s+)?seal:?\s*(?:present|affixed)/i.test(text) &&
-                   !/(missing|absent|illegible)\s+(?:notary\s+)?seal/i.test(text),
-    hasProperDate: /(?:date|dated):\s*\d{2}\/\d{2}\/\d{4}/i.test(text),
-    hasWitnesses: /witness(?:ed)?\s+by:?\s*[A-Z][a-zA-Z\s]+/i.test(text)
+    hasNotarySignature: /notary|signature/i.test(text),
+    hasNotarySeal: /seal|stamp/i.test(text),
+    hasProperDate: /\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}/i.test(text),
+    hasWitnesses: /witness|attestation/i.test(text)
   };
 
   return {
-    isValid: Object.values(notaryChecks).every(Boolean),
+    isValid: Object.values(notaryChecks).some(Boolean), // Change from every to some
     checks: notaryChecks
   };
 }
 
 async function checkForLegalDocumentCharacteristics(text) {
   const spellingErrors = detectSpellingErrors(text);
+  const formatErrors = detectFormatErrors(text);
+  const criticalErrors = detectCriticalErrors(text);
   const notaryValidation = validateNotaryElements(text);
-  
-  // Check for critical errors
-  const criticalErrorsFound = Object.entries(errorPatterns.criticalErrors)
-    .reduce((errors, [type, pattern]) => {
-      if (pattern.test(text)) {
-        errors.push(type);
-      }
-      return errors;
-    }, []);
-
-  // Enhanced format checking
-  const formatErrors = Object.entries(errorPatterns.formatErrors)
-    .reduce((errors, [type, pattern]) => {
-      if (pattern.test(text)) {
-        errors.push(type);
-      }
-      return errors;
-    }, []);
 
   return {
-    isLegalDocument: notaryValidation.checks.hasNotarySignature && 
-                     notaryValidation.checks.hasNotarySeal,
-    isNotarized: notaryValidation.isValid,
-    spellingErrors: spellingErrors.length > 0 ? spellingErrors : null,
-    formatErrors: formatErrors.length > 0 ? formatErrors : null,
-    criticalErrors: criticalErrorsFound.length > 0 ? criticalErrorsFound : null,
+    spellingErrors,
+    formatErrors,
+    criticalErrors,
     notaryValidation
   };
 }
@@ -138,64 +163,33 @@ async function verifyDocument(documentContent) {
   try {
     const documentAnalysis = await checkForLegalDocumentCharacteristics(documentContent);
     
-    // Enhanced verification logic
-    const hasErrors = documentAnalysis.spellingErrors || 
-                     documentAnalysis.formatErrors || 
-                     documentAnalysis.criticalErrors;
+    // Only reject for critical errors
+    const hasCriticalErrors = documentAnalysis.criticalErrors && 
+                             documentAnalysis.criticalErrors.length > 0;
 
-    if (hasErrors) {
+    if (hasCriticalErrors) {
       return {
         verified: false,
-        message: "Document rejected: Quality issues detected",
+        message: "Document rejected: Critical issues detected",
         details: {
-          spellingErrors: documentAnalysis.spellingErrors,
-          formatErrors: documentAnalysis.formatErrors,
           criticalErrors: documentAnalysis.criticalErrors,
           notaryStatus: documentAnalysis.notaryValidation
         }
       };
     }
 
-    if (!documentAnalysis.isLegalDocument || !documentAnalysis.isNotarized) {
-      return {
-        verified: false,
-        message: "Document rejected: Missing critical legal or notary elements",
-        details: {
-          notaryStatus: documentAnalysis.notaryValidation,
-          legalDocumentStatus: documentAnalysis.isLegalDocument
-        }
-      };
-    }
-
-    // AI Analysis for additional verification
-    const predefinedPrompt = `
-    Please verify this legal document for compliance and notary standards. 
-    Focus on:
-    1. Presence and completeness of notary acknowledgment
-    2. Legal formatting and structure
-    3. Required signature blocks
-    4. Date and witness information
-    5. Any missing crucial legal elements
-    
-    Document Content:
-    ${documentContent}
-    
-    Provide a detailed analysis of compliance and validity.
-    `;
-
-    const chatSession = model.startChat({
-      generationConfig,
-      history: [],
-    });
-
-    const result = await chatSession.sendMessage(predefinedPrompt);
-    const aiAnalysis = result.response.text();
+    // Treat spelling and format errors as warnings
+    const warnings = [];
+    if (documentAnalysis.spellingErrors) warnings.push("Potential spelling issues found");
+    if (documentAnalysis.formatErrors) warnings.push("Minor format issues detected");
 
     return {
       verified: true,
-      message: "Document verified successfully.",
+      message: warnings.length > 0 ? 
+               "Document verified with warnings" : 
+               "Document verified successfully",
       details: {
-        aiAnalysis,
+        warnings: warnings.length > 0 ? warnings : null,
         documentAnalysis
       }
     };
@@ -214,6 +208,8 @@ app.post('/api/verify', async (req, res) => {
     }
 
     const file = req.files.file;
+    console.log('Processing file:', file.name); // Add logging
+
     const timestamp = Date.now();
     const fileName = `${timestamp}-${file.name}`;
     const filePath = path.join(__dirname, 'uploads', fileName);
@@ -222,7 +218,11 @@ app.post('/api/verify', async (req, res) => {
     await file.mv(filePath);
 
     const documentContent = await readWordDocument(filePath);
+    console.log('Document content length:', documentContent.length); // Add logging
+    console.log('Document content preview:', documentContent.substring(0, 200)); // Add logging
+
     const verificationResult = await verifyDocument(documentContent);
+    console.log('Verification result:', JSON.stringify(verificationResult, null, 2)); // Add logging
 
     await fs.unlink(filePath);
 
@@ -247,113 +247,6 @@ app.post('/api/verify', async (req, res) => {
   }
 });
 
-// Server startup code remains the same...
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// Function to try different ports
-function startServer(initialPort) {
-  const server = app.listen(initialPort)
-    .on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        console.log(`Port ${initialPort} is busy, trying ${initialPort + 1}...`);
-        startServer(initialPort + 1);
-      } else {
-        console.error('Server error:', err);
-      }
-    })
-    .on('listening', () => {
-      port = server.address().port;
-      console.log(`Server is running on http://localhost:${port}`);
-    });
-
-  // Add error handling for uncaught exceptions
-  server.on('error', (error) => {
-    console.error('Server error:', error);
-    if (error.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is busy, trying ${port + 1}...`);
-      startServer(port + 1);
-    }
-  });
-
-  // Graceful shutdown handler
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM signal received: closing HTTP server');
-    server.close(() => {
-      console.log('HTTP server closed');
-      process.exit(0);
-    });
-  });
-
-  return server;
-}
-
-// Kill any existing process on port 3001 (Windows only)
-const { exec } = require('child_process');
-
-async function killExistingProcess() {
-  return new Promise((resolve, reject) => {
-    exec(`netstat -ano | findstr :${port}`, (error, stdout, stderr) => {
-      if (stdout) {
-        const pidMatch = stdout.match(/\s+(\d+)\s*$/m);
-        if (pidMatch && pidMatch[1]) {
-          const pid = pidMatch[1];
-          exec(`taskkill /F /PID ${pid}`, (error, stdout, stderr) => {
-            if (error) {
-              console.log("No process was killed or error occurred. Starting server...");
-              resolve();
-            } else {
-              console.log(`Killed process ${pid}`);
-              // Add a small delay to ensure the port is released
-              setTimeout(resolve, 1000);
-            }
-          });
-        } else {
-          resolve();
-        }
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-// Initialize server with error handling
-async function initializeServer() {
-  try {
-    await killExistingProcess();
-    
-    // Add a small delay before starting the server
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const server = startServer(port);
-    
-    // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      server.close(() => {
-        process.exit(1);
-      });
-    });
-
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      server.close(() => {
-        process.exit(1);
-      });
-    });
-
-  } catch (error) {
-    console.error('Failed to initialize server:', error);
-    process.exit(1);
-  }
-}
-
-// Start the server
-initializeServer().catch(error => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });

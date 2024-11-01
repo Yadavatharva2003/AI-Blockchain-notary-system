@@ -5,9 +5,13 @@ import {
     keccak256,
     toUtf8Bytes
 } from 'ethers';
+import { ethers } from 'ethers';
 import contractABI from '../contract/build/contracts/DocumentNotarization.json';
 
 const contractAddress = "0x9c74677bB0C0E31AaF4DcbEdD376dBF768Af618D";
+
+let isConnecting = false;
+let connectionPromise = null;
 
 export const checkAndSwitchNetwork = async () => {
     if (typeof window.ethereum === 'undefined') {
@@ -51,28 +55,49 @@ export const checkAndSwitchNetwork = async () => {
     }
 };
 
-export const getBlockchainData = async () => {
-    if (typeof window.ethereum === 'undefined') {
-        throw new Error("Please install MetaMask!");
-    }
+const connectToMetaMask = async () => {
+  if (isConnecting) {
+    return connectionPromise;
+  }
 
+  isConnecting = true;
+  connectionPromise = (async () => {
     try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const contract = new Contract(contractAddress, contractABI.abi, signer);
-        return { provider, signer, contract };
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractABI.abi, signer);
+      return { provider, signer, contract };
     } catch (error) {
-        console.error("Error connecting to blockchain:", error);
-        throw new Error("Failed to connect to the blockchain");
+      console.error('Error connecting to blockchain:', error);
+      if (error.code === 4001) {
+        throw new Error('User rejected the connection request');
+      } else if (error.code === -32002) {
+        throw new Error('MetaMask is already processing a connection request');
+      } else {
+        throw new Error('Failed to connect to the blockchain');
+      }
+    } finally {
+      isConnecting = false;
+      connectionPromise = null;
     }
+  })();
+
+  return connectionPromise;
+};
+
+export const getBlockchainData = async () => {
+  if (typeof window.ethereum === 'undefined') {
+    throw new Error('MetaMask is not installed');
+  }
+  return connectToMetaMask();
 };
 
 // Notarize a document
 export const notarizeDocument = async (document, expirationDuration) => {
     try {
         let documentHash;
-        
+
         // If the input is already a hash string
         if (typeof document === 'string') {
             // Add '0x' prefix if it's not already there
@@ -84,19 +109,17 @@ export const notarizeDocument = async (document, expirationDuration) => {
         } else {
             throw new Error('Invalid input: must be either a file object or a hash string');
         }
-        
         const { contract } = await getBlockchainData();
-        
+
         // Convert duration to seconds (assuming input is in days)
         const expirationInSeconds = expirationDuration * 24 * 60 * 60;
-        
+
         // Use a conservative gas limit for Ganache
         const gasLimit = 6000000;
-        
+
         const tx = await contract.notarizeDocument(documentHash, expirationInSeconds, {
             gasLimit: gasLimit
         });
-        
         console.log("Transaction sent:", tx.hash);
         const receipt = await tx.wait();
         console.log("Document notarized:", receipt);
@@ -135,8 +158,6 @@ export const revokeNotarization = async (documentContent) => {
 };
 
 // Check if a document is notarized
-// Check if a document is notarized
-// Check if a document is notarized
 export const isDocumentNotarized = async (document) => {
     try {
         let documentHash;
@@ -162,6 +183,7 @@ export const isDocumentNotarized = async (document) => {
         throw error;
     }
 };
+
 // Check if document is expired
 export const isDocumentExpired = async (documentHash) => {
     try {
@@ -191,7 +213,6 @@ export const searchDocumentsByNotary = async (notaryAddress) => {
     }
 };
 
-// Get document details
 // Get document details
 export const getDocumentDetails = async (document) => {
     try {
@@ -226,7 +247,6 @@ export const getDocumentDetails = async (document) => {
 };
 
 // Hash the document content
-// In blockchain.js
 export const hashDocument = (file) => {
     return new Promise((resolve, reject) => {
       if (!(file instanceof Blob)) {
@@ -249,7 +269,7 @@ export const hashDocument = (file) => {
       reader.onerror = () => reject(new Error("Error reading file"));
       reader.readAsArrayBuffer(file);
     });
-  };
+};
 
 // Get current account
 export const getCurrentAccount = async () => {
@@ -285,7 +305,7 @@ export const removeEventListeners = () => {
 };
 
 // Listen for DocumentNotarized events
-export const listenToNotarizedEvents = async ( callback) => {
+export const listenToNotarizedEvents = async (callback) => {
     try {
         const { contract } = await getBlockchainData();
         contract.on('DocumentNotarized', callback);
