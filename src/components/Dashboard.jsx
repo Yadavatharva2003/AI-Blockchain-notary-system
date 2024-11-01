@@ -935,6 +935,213 @@ const Dashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
+            {/* Enhanced Doodle Robot Animation */}
+            <svg
+              className="absolute top-2 left-2 w-24 h-24"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <defs>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <motion.g
+                animate={{
+                  x: [0, 30, 0],
+                  y: [0, 10, 0],
+                }}
+                transition={{
+                  duration: 6,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut",
+                }}
+                whileHover={{ scale: 1.1 }}
+                filter="url(#glow)"
+              >
+                {/* Doodle Robot Body */}
+                <motion.path
+                  d="M20 40 Q30 40 40 40 Q40 30 40 20 Q40 10 30 10 Q20 10 20 20 Q20 30 20 40"
+                  fill="none"
+                  stroke={darkMode ? "#9ca3af" : "#4b5563"}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeDasharray="2,3"
+                  animate={{
+                    d: [
+                      "M20 40 Q30 40 40 40 Q40 30 40 20 Q40 10 30 10 Q20 10 20 20 Q20 30 20 40",
+                      "M20 40 Q30 42 40 40 Q40 30 40 20 Q40 8 30 10 Q20 12 20 20 Q20 30 20 40",
+                      "M20 40 Q30 40 40 40 Q40 30 40 20 Q40 10 30 10 Q20 10 20 20 Q20 30 20 40",
+                    ],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+
+                {/* Expressive Eyes */}
+                <motion.g
+                  animate={{
+                    y: [-2, 2, -2],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <circle
+                    cx="26"
+                    cy="24"
+                    r="3"
+                    fill={darkMode ? "#22d3ee" : "#06b6d4"}
+                  />
+                  <circle
+                    cx="34"
+                    cy="24"
+                    r="3"
+                    fill={darkMode ? "#22d3ee" : "#06b6d4"}
+                  />
+                  <motion.path
+                    d="M26 28 Q30 30 34 28"
+                    stroke={darkMode ? "#22d3ee" : "#06b6d4"}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    fill="none"
+                    animate={{
+                      d: [
+                        "M26 28 Q30 30 34 28",
+                        "M26 28 Q30 31 34 28",
+                        "M26 28 Q30 30 34 28",
+                      ],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                </motion.g>
+
+                {/* Squiggly Antenna */}
+                <motion.path
+                  d="M30 10 Q28 6 30 2 Q32 0 30 -4"
+                  stroke={darkMode ? "#9ca3af" : "#4b5563"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                  animate={{
+                    d: [
+                      "M30 10 Q28 6 30 2 Q32 0 30 -4",
+                      "M30 10 Q32 6 30 2 Q28 0 30 -4",
+                      "M30 10 Q28 6 30 2 Q32 0 30 -4",
+                    ],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+
+                {/* Wiggly Arms */}
+                <motion.path
+                  d="M16 30 Q12 30 8 32"
+                  stroke={darkMode ? "#9ca3af" : "#4b5563"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                  animate={{
+                    d: [
+                      "M16 30 Q12 30 8 32",
+                      "M16 30 Q12 28 8 30",
+                      "M16 30 Q12 30 8 32",
+                    ],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+                <motion.path
+                  d="M44 30 Q48 30 52 32"
+                  stroke={darkMode ? "#9ca3af" : "#4b5563"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  fill="none"
+                  animate={{
+                    d: [
+                      "M44 30 Q48 30 52 32",
+                      "M44 30 Q48 28 52 30",
+                      "M44 30 Q48 30 52 32",
+                    ],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.75,
+                  }}
+                />
+
+                {/* Animated Blockchain Block */}
+                <motion.g
+                  animate={{
+                    rotate: [-8, 8, -8],
+                    y: [0, -4, 0],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <motion.path
+                    d="M24 44 L36 44 L36 56 L24 56 Z"
+                    fill="none"
+                    stroke={darkMode ? "#22d3ee" : "#06b6d4"}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeDasharray="4,4"
+                    animate={{
+                      strokeDashoffset: [0, 16],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                  />
+                  <motion.text
+                    x="30"
+                    y="52"
+                    fontSize="8"
+                    fill={darkMode ? "#22d3ee" : "#06b6d4"}
+                    textAnchor="middle"
+                    animate={{
+                      opacity: [0, 1, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    BLOCK
+                  </motion.text>
+                </motion.g>
+              </motion.g>
+            </svg>
             <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
               <h1 className="text-3xl font-bold">Dashboard</h1>
               <div className="flex items-center space-x-4">
@@ -990,7 +1197,6 @@ const Dashboard = () => {
               </div>
             </div>
           </motion.header>
-
           <motion.main
             className="max-w-7xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
