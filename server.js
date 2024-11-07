@@ -279,3 +279,42 @@ app.post("/api/verify", async (req, res) => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
+// Add this near the top of your file, after other requires
+const axios = require("axios");
+
+// Add this after your existing app.post('/api/verify') route
+app.post("/api/chatbot", async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const response = await generateNotaryTemplate(message);
+    res.json({ response });
+  } catch (error) {
+    console.error("Error in chatbot:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while processing your request" });
+  }
+});
+
+async function generateNotaryTemplate(userInput) {
+  const prompt = `Create a notary document template based on the following information: ${userInput}. 
+  Include placeholders for specific details. Ensure the document includes standard notary elements 
+  such as a notary signature line, notary seal placement, and date of notarization.`;
+
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig,
+    });
+
+    const response = result.response;
+    return response.text();
+  } catch (error) {
+    console.error("Error generating notary template:", error);
+    throw new Error("Failed to generate notary template");
+  }
+}

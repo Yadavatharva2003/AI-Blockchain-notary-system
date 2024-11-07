@@ -22,6 +22,7 @@ import {
   Sun,
   Home,
 } from "lucide-react";
+import NotaryChatbot from "./chatbot";
 import { Link, useNavigate } from "react-router-dom";
 import BlockchainLoader from "./BlockchainLoader";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
@@ -60,14 +61,12 @@ const Dashboard = () => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [showOptions, setShowOptions] = React.useState(false);
   const [file, setFile] = React.useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  // or however you're managing dark mode
   const handleIconClick = () => {
     setIsIconClicked(true);
-    setIsModalOpen(true);
-    setTimeout(() => {
-      setIsIconClicked(false);
-    }, 300);
+    setIsChatbotOpen(!isChatbotOpen); // Toggle the chatbot
+    setTimeout(() => setIsIconClicked(false), 200);
   };
 
   const [darkMode, setDarkMode] = React.useState(() => {
@@ -1562,7 +1561,6 @@ const Dashboard = () => {
           initial={{ scale: 1 }}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          animate={{ scale: isIconClicked ? 0.9 : 1 }}
           onClick={handleIconClick}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
@@ -1590,10 +1588,26 @@ const Dashboard = () => {
             Click to open AI Assistant
           </div>
         </Transition>
+
+        {/* Chatbot Modal */}
+        {isChatbotOpen && (
+          <div className="fixed bottom-24 right-4 z-50 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+            <div className="flex justify-between items-center p-3 border-b dark:border-gray-700">
+              <h3 className="font-bold text-gray-800 dark:text-white">
+                AI Assistant
+              </h3>
+              <button
+                onClick={() => setIsChatbotOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+            <NotaryChatbot />
+          </div>
+        )}
       </div>
-      // Add the modal component
     </div>
   );
 };
-
 export default Dashboard;
