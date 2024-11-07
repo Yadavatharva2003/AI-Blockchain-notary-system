@@ -228,8 +228,10 @@ export default function DashboardHistory() {
               </h1>
               <button
                 onClick={handleToggleDarkMode}
-                className={`ml-auto p-2 rounded ${
-                  darkMode ? "bg-gray-700" : "bg-gray-300"
+                className={`ml-auto p-2 rounded-full transition-colors duration-300 ${
+                  darkMode
+                    ? "bg-gray-700 hover:bg-gray-600"
+                    : "bg-gray-200 hover:bg-gray-300"
                 }`}
               >
                 {darkMode ? (
