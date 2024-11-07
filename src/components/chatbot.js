@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./NotaryChatbot.css";
-
+import { FaDownload, FaCopy } from "react-icons/fa";
 const NotaryChatbot = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -64,6 +64,22 @@ const NotaryChatbot = () => {
     }
   };
 
+  // Function to copy text to clipboard
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Copied to clipboard!");
+    });
+  };
+
+  // Function to download the text as a file
+  const downloadTextFile = (text) => {
+    const blob = new Blob([text], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "chatbot_response.txt"; // Default file name
+    link.click();
+  };
+
   return (
     <div className={`chatbot-container ${theme}`}>
       <div className="robot-doodle">
@@ -84,6 +100,19 @@ const NotaryChatbot = () => {
             }`}
           >
             {message.text}
+            {/* Add Copy and Download buttons */}
+            {!message.isUser && (
+              <div className="message-actions">
+                <FaCopy
+                  className="action-icon"
+                  onClick={() => copyToClipboard(message.text)}
+                />
+                <FaDownload
+                  className="action-icon"
+                  onClick={() => downloadTextFile(message.text)}
+                />
+              </div>
+            )}
           </div>
         ))}
 
