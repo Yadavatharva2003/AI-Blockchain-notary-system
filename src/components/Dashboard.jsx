@@ -667,7 +667,7 @@ const Dashboard = () => {
               showPopupMessage("Document verified successfully!", "success");
               break;
             case "Rejected":
-              showPopupMessage("Document verification failed", "error");
+              showPopupMessage("Document verification Rejected", "error");
               break;
             case "In Progress":
               showPopupMessage("Document verification in progress", "info");
@@ -1142,6 +1142,7 @@ const Dashboard = () => {
                 </motion.g>
               </motion.g>
             </svg>
+
             <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
               <h1 className="text-3xl font-bold">Dashboard</h1>
               <div className="flex items-center space-x-4">
@@ -1591,39 +1592,6 @@ const Dashboard = () => {
         </Transition>
       </div>
       // Add the modal component
-      <Dialog
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        className="fixed z-50 inset-0 overflow-y-auto"
-      >
-        <div className="flex items-center justify-center min-h-screen">
-          <Dialog.Overlay className="fixed inset-0 bg-black opacity-30" />
-
-          <div
-            className={`relative bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full mx-4 ${
-              darkMode ? "text-white" : "text-gray-900"
-            }`}
-          >
-            <Dialog.Title className="text-2xl font-bold mb-4 z-50">
-              Document AI Assistant
-            </Dialog.Title>
-            <div className="mb-4 z-50">
-              {/* Add your AI assistant interface here */}
-              <p>How can I help you with your documents today?</p>
-            </div>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className={`mt-4 px-4 py-2 rounded ${
-                darkMode
-                  ? "bg-gray-700 hover:bg-gray-600"
-                  : "bg-gray-200 hover:bg-gray-300"
-              }`}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 };
