@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
 contract DocumentNotarization {
@@ -19,11 +19,11 @@ contract DocumentNotarization {
 
     // Struct to store information about the notarized document
     struct NotarizedDocument {
-        address notary; // Address of the notary
-        uint256 notarizationTime; // Timestamp when the document was notarized
-        bool exists; // Status to check if the document is notarized
-        bool revoked; // Status to indicate if the notarization has been revoked
-        uint256 expirationTime; // Timestamp when the notarization expires
+        address notary; 
+        uint256 notarizationTime; 
+        bool exists; 
+        bool revoked; 
+        uint256 expirationTime; 
     }
 
     // Mapping to store notarized documents by their hash
@@ -116,11 +116,10 @@ contract DocumentNotarization {
             }
         }
 
-        // Create an array to store the found document hashes
+      
         bytes32[] memory foundDocuments = new bytes32[](count);
         uint256 index = 0;
 
-        // Populate the foundDocuments array
         for (uint256 i = 0; i < totalDocuments; i++) {
             bytes32 docHash = documentHashes[i];
             if (

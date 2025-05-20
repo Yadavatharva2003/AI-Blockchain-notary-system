@@ -103,11 +103,12 @@ const Dashboard = () => {
   const [progress, setProgress] = React.useState(0); // State for upload progress
 
   const [documentStatuses, setDocumentStatuses] = React.useState([
-    { title: "Uploaded Documents", icon: <Upload size={32} />, count: 0 }, // Start with 0
+    { title: "Uploaded Documents", icon: <Upload size={32} />, count: 0 },
     { title: "In Progress", icon: <Clock size={32} />, count: 0 },
     { title: "Verified Documents", icon: <CheckCircle size={32} />, count: 0 },
     { title: "Rejected Documents", icon: <XCircle size={32} />, count: 0 },
   ]);
+  const [selectedNetwork, setSelectedNetwork] = React.useState("ganache1");
 
   const [recentActivities, setRecentActivities] = React.useState([]); // Initialize as empty
   const [showRevokeConfirmation, setShowRevokeConfirmation] = useState(false);
@@ -1181,6 +1182,33 @@ const Dashboard = () => {
                     className={darkMode ? "text-white" : "text-gray-800"}
                   />
                 </button>
+                {/* Multi-Chain Network Selector near Home Button */}
+                <select
+                  className={`ml-2 p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    darkMode
+                      ? "bg-gray-700 text-white border-gray-600"
+                      : "bg-white text-gray-900"
+                  }`}
+                  value={selectedNetwork}
+                  aria-label="Select blockchain network"
+                  onChange={async (e) => {
+                    const newNetwork = e.target.value;
+                    try {
+                      await checkAndSwitchNetwork(newNetwork);
+                      setSelectedNetwork(newNetwork);
+                      showPopupMessage(`Switched to ${newNetwork}`, "success");
+                    } catch (error) {
+                      showPopupMessage(
+                        `Failed to switch network: ${error.message}`,
+                        "error"
+                      );
+                    }
+                  }}
+                >
+                  <option value="ganache1">Ethereum</option>
+                  <option value="ganache2">Polygon</option>
+                  <option value="ganache3">Binance</option>
+                </select>
                 {/* Dark Mode Toggle */}
                 <button
                   onClick={toggleDarkMode}

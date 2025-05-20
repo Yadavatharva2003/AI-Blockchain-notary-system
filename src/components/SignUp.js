@@ -10,6 +10,7 @@ import {
   fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { BrowserProvider } from "ethers";
 
 const db = getFirestore();
 
@@ -22,6 +23,33 @@ const SignUp = () => {
     }
     return false;
   });
+
+  const connectMetaMaskAndGenerateDID = async () => {
+    if (!window.ethereum) {
+      setMessage("MetaMask is not installed. Please install it to continue.");
+      throw new Error("MetaMask is not installed");
+    }
+
+    const provider = new BrowserProvider(window.ethereum);
+    // Request account access
+    const accounts = await provider.send("eth_requestAccounts", []);
+    if (accounts.length === 0) {
+      setMessage(
+        "No accounts found. Please make sure you are logged in to MetaMask."
+      );
+      throw new Error("No accounts found in MetaMask");
+    }
+
+    const signer = await provider.getSigner();
+    const address = await signer.getAddress();
+
+    const signature = await signer.signMessage(
+      "Sign up for DocuVerify on " + new Date().toISOString()
+    );
+
+    const did = `did:ethr:${address}`;
+    return { address, signature, did };
+  };
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -37,23 +65,19 @@ const SignUp = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [message, setMessage] = useState("");
-
   const handleSignUp = async (e) => {
     e.preventDefault();
-    setMessage(""); // Clear previous messages
+    setMessage("");
 
     try {
-      // Check if the email already exists
+      const { address, signature, did } = await connectMetaMaskAndGenerateDID();
+
       const signInMethods = await fetchSignInMethodsForEmail(auth, email);
       if (signInMethods.length > 0) {
-        // Email already exists
-        setMessage(
-          "An account with this email already exists. Please login instead."
-        );
+        setMessage("An account with this email already exists.");
         return;
       }
 
-      // Create a new user using Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -61,27 +85,22 @@ const SignUp = () => {
       );
       const user = userCredential.user;
 
-      // Send verification email
       await sendEmailVerification(user);
-      setMessage(
-        "Verification email sent! Please verify your email before logging in."
-      );
 
-      // Save user info to Firestore with different field names
       await setDoc(doc(db, "users", user.uid), {
-        name: fullName, // 'name' instead of 'fullName'
-        email: email, // 'emailAddress' instead of 'email'
-        dob: dateOfBirth, // 'dob' instead of 'dateOfBirth'
-        phone: phoneNumber, // 'phone' instead of 'phoneNumber'
+        name: fullName,
+        email,
+        phone: phoneNumber,
+        dob: dateOfBirth,
+        did, // Store the DID generated via MetaMask
+        wallet: address,
+        signature,
       });
 
-      // Optionally, save user info to your database, then redirect to another page
-      setTimeout(() => {
-        navigate("/login", { replace: true });
-      }, 3000);
-    } catch (error) {
-      // Handle signup errors
-      setMessage(error.message);
+      setMessage("Verification email sent!");
+      setTimeout(() => navigate("/login", { replace: true }), 3000);
+    } catch (err) {
+      setMessage(err.message);
     }
   };
 

@@ -20,7 +20,7 @@ app.use(
 app.use(express.json());
 app.use(express.static("public"));
 
-const apiKey = "AIzaSyCGuyyrxMbaTHrHntV537ZrZt6U_X0X4zI";
+const apiKey = "AIzaSyDJC9ud_712OLT-MhiUCcQuPDHzsSixdwE";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
@@ -236,6 +236,11 @@ app.post("/api/verify", async (req, res) => {
 
     const file = req.files.file;
     console.log("Processing file:", file.name); // Add logging
+    if (path.extname(file.name).toLowerCase() !== ".docx") {
+      return res
+        .status(400)
+        .json({ success: false, error: "Only .docx files are allowed" });
+    }
 
     const timestamp = Date.now();
     const fileName = `${timestamp}-${file.name}`;
@@ -294,9 +299,10 @@ app.post("/api/chatbot", async (req, res) => {
     res.json({ response });
   } catch (error) {
     console.error("Error in chatbot:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while processing your request" });
+    // Return detailed error message if available
+    res.status(500).json({
+      error: error.message || "An error occurred while processing your request",
+    });
   }
 });
 
@@ -315,6 +321,12 @@ async function generateNotaryTemplate(userInput) {
     return response.text();
   } catch (error) {
     console.error("Error generating notary template:", error);
+    if (error.status === 429) {
+      // Quota exceeded error
+      throw new Error(
+        "Google API quota exceeded. Please check your plan and billing details. Retry after some time."
+      );
+    }
     throw new Error("Failed to generate notary template");
   }
 }
