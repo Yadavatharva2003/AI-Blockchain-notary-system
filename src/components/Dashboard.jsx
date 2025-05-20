@@ -53,6 +53,7 @@ import {
   notarizeDocument,
   checkAndSwitchNetwork,
   hashDocument,
+  setCurrentNetwork,
 } from "./blockchain";
 import CryptoJS from "crypto-js";
 import DocumentIcon from "@mui/icons-material/Description";
@@ -1195,6 +1196,7 @@ const Dashboard = () => {
                     const newNetwork = e.target.value;
                     try {
                       await checkAndSwitchNetwork(newNetwork);
+                      setCurrentNetwork(newNetwork);
                       setSelectedNetwork(newNetwork);
                       showPopupMessage(`Switched to ${newNetwork}`, "success");
                     } catch (error) {
