@@ -21,6 +21,7 @@ import {
   Moon,
   Sun,
   Home,
+  User,
 } from "lucide-react";
 import NotaryChatbot from "./chatbot";
 import { Link, useNavigate } from "react-router-dom";
@@ -35,6 +36,7 @@ import {
   query,
   orderBy,
   limit,
+  getDoc,
 } from "firebase/firestore";
 import { Dialog, Transition } from "@headlessui/react";
 import { toast } from "react-toastify";
@@ -96,6 +98,24 @@ const Dashboard = () => {
   });
 
   const [user, setUser] = React.useState(null); // State to store user info
+  const [showProfileCard, setShowProfileCard] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+
+  // Function to fetch user profile data from Firestore
+  const fetchUserProfileData = async (uid) => {
+    try {
+      const userDocRef = doc(db, "users", uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        setProfileData(userDocSnap.data());
+      } else {
+        setProfileData(null);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile data:", error);
+      setProfileData(null);
+    }
+  };
   const navigate = useNavigate();
   const [dragging, setDragging] = React.useState(false);
 
@@ -1183,6 +1203,130 @@ const Dashboard = () => {
                     className={darkMode ? "text-white" : "text-gray-800"}
                   />
                 </button>
+                {/* Profile Icon Button near Home Button */}
+                <button
+                  onClick={() => {
+                    setShowProfileCard((prev) => !prev);
+                    if (!showProfileCard && user && !user.isAnonymous) {
+                      fetchUserProfileData(user.uid);
+                    } else if (!showProfileCard && user && user.isAnonymous) {
+                      // For anonymous users, clear profileData or set minimal info
+                      setProfileData(null);
+                    }
+                  }}
+                  className={`ml-2 p-2 rounded-full shadow-md transition-transform duration-150 ease-in-out transform hover:scale-105 ${
+                    darkMode ? "bg-gray-700" : "bg-gray-300"
+                  }`}
+                  aria-label="Profile"
+                  title="Profile"
+                >
+                  <User
+                    size={24}
+                    className={darkMode ? "text-white" : "text-gray-800"}
+                  />
+                </button>
+                {/* Profile Card Modal */}
+                <Transition appear show={showProfileCard} as={Fragment}>
+                  <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setShowProfileCard(false)}
+                  >
+                    <Transition.Child
+                      as={Fragment}
+                      enter="ease-out duration-300"
+                      enterFrom="opacity-0"
+                      enterTo="opacity-100"
+                      leave="ease-in duration-200"
+                      leaveFrom="opacity-100"
+                      leaveTo="opacity-0"
+                    >
+                      <div className="fixed inset-0 bg-black bg-opacity-25" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                      <div className="flex min-h-full items-center justify-center p-4 text-center">
+                        <Transition.Child
+                          as={Fragment}
+                          enter="ease-out duration-300"
+                          enterFrom="opacity-0 scale-95"
+                          enterTo="opacity-100 scale-100"
+                          leave="ease-in duration-200"
+                          leaveFrom="opacity-100 scale-100"
+                          leaveTo="opacity-0 scale-95"
+                        >
+                          <Dialog.Panel
+                            className={`w-full max-w-md transform overflow-hidden rounded-2xl ${
+                              darkMode
+                                ? "bg-gray-900 text-white"
+                                : "bg-white text-gray-900"
+                            } p-6 text-left align-middle shadow-xl transition-all`}
+                            style={{ backdropFilter: "blur(10px)" }}
+                          >
+                            <Dialog.Title
+                              as="h3"
+                              className="text-xl font-semibold mb-4 border-b pb-2"
+                            >
+                              User Profile
+                            </Dialog.Title>
+                            <div className="space-y-2">
+                              <p className="text-sm">
+                                <strong>Email:</strong>{" "}
+                                {user && user.email
+                                  ? user.email
+                                  : "No email available"}
+                              </p>
+                              <p className="text-sm">
+                                <strong>Anonymous:</strong>{" "}
+                                {user && user.isAnonymous ? "Yes" : "No"}
+                              </p>
+                              {!user?.isAnonymous && profileData && (
+                                <>
+                                  {profileData.displayName && (
+                                    <p className="text-sm">
+                                      <strong>Display Name:</strong>{" "}
+                                      {profileData.displayName}
+                                    </p>
+                                  )}
+                                  {profileData.createdAt && (
+                                    <p className="text-sm">
+                                      <strong>Member Since:</strong>{" "}
+                                      {profileData.createdAt.toDate
+                                        ? profileData.createdAt
+                                            .toDate()
+                                            .toLocaleDateString()
+                                        : new Date(
+                                            profileData.createdAt
+                                          ).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </>
+                              )}
+                              {user?.isAnonymous && (
+                                <p className="text-sm italic text-yellow-400">
+                                  You are logged in anonymously.
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setShowProfileCard(false);
+                                navigate("/account-settings");
+                              }}
+                              className={`mt-6 w-full py-2 rounded-md text-center font-semibold transition-colors duration-200 ${
+                                darkMode
+                                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                  : "bg-blue-500 hover:bg-blue-600 text-white"
+                              }`}
+                            >
+                              Edit Profile
+                            </button>
+                          </Dialog.Panel>
+                        </Transition.Child>
+                      </div>
+                    </div>
+                  </Dialog>
+                </Transition>
                 {/* Multi-Chain Network Selector near Home Button */}
                 <select
                   className={`ml-2 p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
