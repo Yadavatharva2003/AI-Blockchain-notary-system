@@ -57,6 +57,7 @@ import {
   hashDocument,
   setCurrentNetwork,
 } from "./blockchain";
+import { generateCertificate } from "./NotarizationCertificate";
 import CryptoJS from "crypto-js";
 import DocumentIcon from "@mui/icons-material/Description";
 const Dashboard = () => {
@@ -656,7 +657,12 @@ const Dashboard = () => {
       // 3. Check if document is already notarized
       const isAlreadyNotarized = await isDocumentNotarized(documentHash);
       if (isAlreadyNotarized) {
-        throw new Error("Document is already notarized");
+        showPopupMessage(
+          "This document is already notarized on the blockchain.",
+          "info"
+        );
+        setLoading(false);
+        return;
       }
 
       // 4. Prepare file for verification
@@ -723,6 +729,17 @@ const Dashboard = () => {
             expirationDuration
           );
           console.log("Blockchain transaction receipt:", blockchainReceipt);
+
+          // After successful notarization, get document details for certificate
+          const details = await getDocumentDetails(documentHash);
+
+          // Generate and download notarization certificate
+          generateCertificate(
+            documentHash,
+            details.notary,
+            details.notarizationTime,
+            details.expirationTime
+          );
 
           showPopupMessage(
             "Document successfully notarized on blockchain!",
