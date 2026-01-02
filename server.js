@@ -20,7 +20,7 @@ app.use(
 app.use(express.json());
 app.use(express.static("public"));
 
-const apiKey = "AIzaSyDJC9ud_712OLT-MhiUCcQuPDHzsSixdwE";
+const apiKey = "Your_Api_Key";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({
